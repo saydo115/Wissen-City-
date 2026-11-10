@@ -35,6 +35,11 @@
     "minSecondsLeft": 30
   },
   "likesPerBuildPoint": 50,
+  "levels": {
+    "pointsPerLevel": 100,
+    "bonusEveryLevels": 10,
+    "bonusSecondsPerLevel": 1
+  },
   "bigGifts": {
     "fireworksFrom": 100,
     "megaFrom": 1000

@@ -13,6 +13,7 @@ const C = {
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
   quiz: Object.assign({ everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
+  levels: Object.assign({ pointsPerLevel: 100, bonusEveryLevels: 10, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
@@ -37,11 +38,21 @@ addEventListener('resize', fit); fit();
 // =====================================================================================
 // Game rules
 // =====================================================================================
-const LEVELS = [ // build points needed, name
-  [0, 'Baustelle'], [1, 'Zelt'], [5, 'Hütte'], [15, 'Häuschen'], [40, 'Stadthaus'],
-  [100, 'Villa'], [250, 'Große Villa'], [600, 'Hochhaus'], [1500, 'Löwen-Turm'],
-];
-const levelFor = bp => { let l = 0; for (let i = 0; i < LEVELS.length; i++) if (bp >= LEVELS[i][0]) l = i; return l; };
+// Level = every 100 build points (Level 10 = 1.000, Level 20 = 2.000 …), no upper limit
+const PPL = () => C.levels.pointsPerLevel;
+const levelFor = bp => Math.floor(bp / PPL());
+const levelProgress = bp => (bp % PPL()) / PPL();
+function levelName(l) {
+  if (l <= 0) return 'Baustelle';
+  const small = ['', 'Zelt', 'Hütte', 'Häuschen', 'Stadthaus', 'Villa'];
+  if (l <= 5) return small[l];
+  if (l < 10) return 'Große Villa';
+  if (l < 20) return 'Hochhaus';
+  if (l < 30) return 'Gold-Turm';
+  if (l < 40) return 'Löwen-Turm';
+  if (l < 50) return 'Diamant-Turm';
+  return 'Weltwunder';
+}
 
 const state = {
   players: new Map(),            // id -> {id, nick, avatar, bp, level, plot, likes}
@@ -174,48 +185,99 @@ function buildHouse(level, seed) {
   const g = new THREE.Group();
   const col = PALETTE[seed % PALETTE.length], rc = ROOFS[(seed >>> 4) % ROOFS.length];
   const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
-  switch (level) {
-    case 0: { // construction site
-      add(box(4.5, .3, 4.5, 0x8a6a3a), 0, .15, 0);
-      for (const [x, z] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) add(box(.25, 2.2, .25, 0xf2c14e), x, 1.1, z);
-      add(box(4, .25, .25, 0xf2c14e), 0, 2.1, -1.8); break;
+  const glowSprite = (color, size, y) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); h.scale.set(size, size, 1); return add(h, 0, y, 0); };
+  const beam = (color, height, y0) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(.35, 1.2, height, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); return add(b, 0, y0 + height / 2, 0); };
+  const L = level;
+  if (L <= 6) {
+    switch (L) {
+      case 0:
+        add(box(4.5, .3, 4.5, 0x8a6a3a), 0, .15, 0);
+        for (const [x, z] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) add(box(.25, 2.2, .25, 0xf2c14e), x, 1.1, z);
+        add(box(4, .25, .25, 0xf2c14e), 0, 2.1, -1.8); break;
+      case 1: { const t = new THREE.Mesh(new THREE.ConeGeometry(2, 2.8, 4), new THREE.MeshStandardMaterial({ color: col })); t.castShadow = true; add(t, 0, 1.4, 0); break; }
+      case 2: add(box(3.2, 2.2, 3.2, col, 1, 2), 0, 1.1, 0); add(roof(3.2, 3.2, 1.8, rc), 0, 3.1, 0); break;
+      case 3: add(box(4, 3, 3.6, col, 1, 3), 0, 1.5, 0); add(roof(4, 3.6, 2.2, rc), 0, 4.1, 0); add(box(.5, 1.6, .5, 0x777777), 1.2, 4.6, .6); break;
+      case 4: add(box(4.2, 5.2, 4.2, col, 2, 3), 0, 2.6, 0); add(roof(4.2, 4.2, 2.4, rc), 0, 6.4, 0); break;
+      case 5: add(box(5.6, 4, 4, col, 2, 4), 0, 2, -.4); add(roof(5.6, 4, 2.2, rc), 0, 5.1, -.4); add(box(2.4, .2, 1.6, 0x3aa0ff), 1.5, .25, 2.2); break;
+      default: add(box(5.8, 6, 3.8, col, 3, 4), 0, 3, -.6); add(box(2.6, 4, 2.6, col, 2, 2), -1.6, 2, 1.8);
+        add(roof(5.8, 3.8, 2.4, rc), 0, 7.2, -.6); add(roof(2.6, 2.6, 1.6, rc), -1.6, 4.8, 1.8); add(box(2.4, .2, 1.6, 0x3aa0ff), 1.8, .25, 2.2);
     }
-    case 1: { const t = new THREE.Mesh(new THREE.ConeGeometry(2, 2.8, 4), new THREE.MeshStandardMaterial({ color: col })); t.castShadow = true; add(t, 0, 1.4, 0); break; }
-    case 2: add(box(3.2, 2.2, 3.2, col, 1, 2), 0, 1.1, 0); add(roof(3.2, 3.2, 1.8, rc), 0, 3.1, 0); break;
-    case 3: add(box(4, 3, 3.6, col, 1, 3), 0, 1.5, 0); add(roof(4, 3.6, 2.2, rc), 0, 4.1, 0); add(box(.5, 1.6, .5, 0x777777), 1.2, 4.6, .6); break;
-    case 4: add(box(4.2, 5.2, 4.2, col, 2, 3), 0, 2.6, 0); add(roof(4.2, 4.2, 2.4, rc), 0, 6.4, 0); break;
-    case 5: add(box(5.6, 4, 4, col, 2, 4), 0, 2, -.4); add(roof(5.6, 4, 2.2, rc), 0, 5.1, -.4);
-      add(box(2.4, .2, 1.6, 0x3aa0ff), 1.5, .25, 2.2); break; // pool
-    case 6: add(box(5.8, 6, 3.8, col, 3, 4), 0, 3, -.6); add(box(2.6, 4, 2.6, col, 2, 2), -1.6, 2, 1.8);
-      add(roof(5.8, 3.8, 2.4, rc), 0, 7.2, -.6); add(roof(2.6, 2.6, 1.6, rc), -1.6, 4.8, 1.8);
-      add(box(2.4, .2, 1.6, 0x3aa0ff), 1.8, .25, 2.2); break;
-    case 7: add(box(4.6, 16, 4.6, 0x9fb0c8, 8, 3), 0, 8, 0); add(box(3.4, 2, 3.4, 0x6a7a90, 1, 2), 0, 17, 0);
-      { const a = add(box(.2, 3, .2, 0xff3b3b), 0, 19.5, 0); a.material.emissive = new THREE.Color(0xff2020); } break;
-    default: { // 8: golden lion tower
-      const gold = 0xffc23a;
-      add(box(5, 22, 5, gold, 11, 3), 0, 11, 0); add(box(3.8, 3, 3.8, 0xfff0b0, 1, 2), 0, 23.5, 0);
-      const s = new THREE.Mesh(new THREE.SphereGeometry(1.6, 20, 16), new THREE.MeshStandardMaterial({ color: gold, emissive: 0xff9a00, emissiveIntensity: .8, metalness: .6, roughness: .3 }));
-      add(s, 0, 26.5, 0);
-      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffc040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-      halo.scale.set(16, 16, 1); add(halo, 0, 26.5, 0);
-    }
+    return g;
   }
+  if (L < 10) { // Große Villa + growing garden (hedge, trees, lights)
+    add(box(5.8, 6, 3.8, col, 3, 4), 0, 3, -.6); add(box(2.6, 4, 2.6, col, 2, 2), -1.6, 2, 1.8);
+    add(roof(5.8, 3.8, 2.4, rc), 0, 7.2, -.6); add(roof(2.6, 2.6, 1.6, rc), -1.6, 4.8, 1.8);
+    add(box(2.4, .2, 1.6, 0x3aa0ff), 1.8, .25, 2.2);
+    add(box(6.4, .8, .4, 0x2f7a3a), 0, .4, 3.1); add(box(.4, .8, 6.4, 0x2f7a3a), -3.1, .4, 0); add(box(.4, .8, 6.4, 0x2f7a3a), 3.1, .4, 0);
+    for (let i = 0; i < L - 6; i++) { const t = new THREE.Mesh(new THREE.SphereGeometry(.7, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3f9a4a })); add(t, -2.6 + i * 1.7, 1.4, -2.8); }
+    if (L >= 8) { glowSprite(0xffd890, 3, 1.5).position.set(2.6, 1.5, 2.6); glowSprite(0xffd890, 3, 1.5).position.set(-2.6, 1.5, 2.6); }
+    if (L >= 9) add(box(.15, 2.5, .15, 0xdddddd), 2.6, 8.5, -.6), glowSprite(0xff4040, 2, 9.8).position.set(2.6, 9.8, -.6);
+    return g;
+  }
+  if (L < 20) { // Hochhaus – grows one floor per level
+    const floors = 6 + (L - 10), h = floors * 2;
+    add(box(4.6, h, 4.6, 0x9fb0c8, floors, 3), 0, h / 2, 0);
+    add(box(5.2, .4, 5.2, 0x5a6478), 0, h + .2, 0);
+    if (L >= 13) { const a = add(box(.2, 3.5, .2, 0xcccccc), 1.4, h + 2, 1.4); glowSprite(0xff3030, 2.2, h + 3.8).position.set(1.4, h + 3.8, 1.4); }
+    if (L >= 16) { const hp = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, .2, 24), new THREE.MeshStandardMaterial({ color: 0x333a48 })); add(hp, -.6, h + .5, -.6); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.3, .08, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffd23f })); ring.rotation.x = Math.PI / 2; add(ring, -.6, h + .65, -.6); }
+    if (L >= 18) add(box(3, 4, 3, 0x8a9cb8, 2, 2), 0, h + 2.4, 0);
+    return g;
+  }
+  const gold = 0xffc23a;
+  const goldMat = new THREE.MeshStandardMaterial({ color: gold, emissive: 0xff9a00, emissiveIntensity: .7, metalness: .6, roughness: .3 });
+  if (L < 30) { // Gold-Turm
+    const floors = 14 + (L - 20), h = floors * 2;
+    add(box(5, h, 5, gold, floors, 3), 0, h / 2, 0); add(box(3.8, 3, 3.8, 0xfff0b0, 1, 2), 0, h + 1.5, 0);
+    for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) add(new THREE.Mesh(new THREE.SphereGeometry(.5, 10, 8), goldMat), x, h + .5, z);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(1, 5, 8), goldMat); add(spire, 0, h + 5.5, 0);
+    glowSprite(0xffc040, 10, h + 5);
+    if (L >= 25) beam(0xffd070, 40, h + 6);
+    return g;
+  }
+  if (L < 40) { // Löwen-Turm
+    const floors = 20 + Math.floor((L - 30) / 1), h = floors * 2;
+    add(box(5.2, h, 5.2, gold, floors, 3), 0, h / 2, 0); add(box(4, 3, 4, 0xfff0b0, 1, 2), 0, h + 1.5, 0);
+    add(new THREE.Mesh(new THREE.SphereGeometry(1.8, 20, 16), goldMat), 0, h + 4.6, 0);
+    const mane = new THREE.Mesh(new THREE.TorusGeometry(1.9, .6, 10, 24), new THREE.MeshStandardMaterial({ color: 0xc87a1a, metalness: .5, roughness: .4, emissive: 0x552200 })); add(mane, 0, h + 4.6, 0);
+    glowSprite(0xffc040, 18, h + 4.6);
+    if (L >= 35) { const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6, .15, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffe080 })); ring.rotation.x = Math.PI / 2.4; add(ring, 0, h + 4.6, 0); }
+    beam(0xffd070, 50, h + 6);
+    return g;
+  }
+  // Diamant-Turm (40+) / Weltwunder (50+)
+  const floors = Math.min(40, 30 + Math.floor((L - 40) / 2)), h = floors * 2;
+  const crystal = new THREE.MeshStandardMaterial({ color: 0x9ef0ff, emissive: 0x2299cc, emissiveIntensity: .8, metalness: .3, roughness: .1, transparent: true, opacity: .9 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 3.2, h, 6), crystal); body.castShadow = true; add(body, 0, h / 2, 0);
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(2.6), crystal); add(gem, 0, h + 3.2, 0);
+  glowSprite(0x7fe8ff, 20, h + 3.2);
+  beam(L >= 50 ? 0xff7ad9 : 0x7fe8ff, 60, h + 5);
+  if (L >= 50) { glowSprite(0xff5aa0, 26, h + 3.2); glowSprite(0xffd23f, 32, h + 3.2); for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(4 + i, .12, 8, 48), new THREE.MeshBasicMaterial({ color: [0xff5aa0, 0xffd23f, 0x3ddc84][i] })); r.rotation.x = Math.PI / 2 + i * .4; add(r, 0, h + 3.2, 0); } }
   return g;
 }
-const HOUSE_TOP = [3, 3, 4, 5.5, 8, 7, 9, 20, 29];
+
 
 // name labels
-function label(text, level) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+function label(text, level, prog = 0) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 168;
   const g = c.getContext('2d');
-  g.font = '700 54px Fredoka, Arial'; const w = Math.min(500, g.measureText(text).width + 70);
-  g.fillStyle = level >= 7 ? 'rgba(120,80,0,.85)' : 'rgba(10,12,28,.8)';
-  g.beginPath(); g.roundRect((512 - w) / 2, 20, w, 84, 42); g.fill();
-  g.strokeStyle = level >= 7 ? '#ffd23f' : 'rgba(255,255,255,.35)'; g.lineWidth = 4; g.stroke();
-  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 64, 460);
+  const big = level >= 20;
+  g.font = '700 52px Fredoka, Arial'; const w = Math.min(500, Math.max(260, g.measureText(text).width + 70));
+  g.fillStyle = big ? 'rgba(120,80,0,.88)' : level >= 10 ? 'rgba(30,50,90,.88)' : 'rgba(10,12,28,.82)';
+  g.beginPath(); g.roundRect((512 - w) / 2, 8, w, 150, 34); g.fill();
+  g.strokeStyle = big ? '#ffd23f' : level >= 10 ? '#7fc8ff' : 'rgba(255,255,255,.35)'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 56, w - 40);
+  g.font = '700 34px Fredoka, Arial'; g.fillStyle = big ? '#ffe9a0' : '#ffd23f'; g.fillText(`Lv ${level}`, 256 - w / 2 + 70, 118);
+  const bx = 256 - w / 2 + 130, bw = w - 160;                       // progress to next level
+  g.fillStyle = 'rgba(255,255,255,.15)'; g.beginPath(); g.roundRect(bx, 106, bw, 24, 12); g.fill();
+  g.fillStyle = '#3ddc84'; g.beginPath(); g.roundRect(bx, 106, Math.max(24, bw * prog), 24, 12); g.fill();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, sizeAttenuation: false }));
-  const k = level >= 7 ? 1.25 : 1; s.scale.set(.095 * k, .024 * k, 1); s.renderOrder = 10; return s;
+  const k = big ? 1.2 : 1; s.scale.set(.095 * k, .031 * k, 1); s.renderOrder = 10; return s;
+}
+function refreshLabel(pl) {
+  const g = pl.plot?.group; if (!g || !g.userData.label) return;
+  const old = g.userData.label; const lb = label(pl.nick.slice(0, 16), Math.max(0, pl.level), levelProgress(pl.bp));
+  lb.position.copy(old.position); g.remove(old); old.material.map.dispose(); old.material.dispose(); g.add(lb); g.userData.label = lb;
 }
 
 // animations registry
@@ -271,21 +333,33 @@ function placeHouse(pl, level, celebrate) {
   if (p.group) scene.remove(p.group);
   const g = new THREE.Group(); g.position.set(p.x, .2, p.z);
   const h = buildHouse(level, hash(pl.id)); g.add(h);
-  const lb = label(pl.nick.slice(0, 16), level); lb.position.y = HOUSE_TOP[level] + 1.6; g.add(lb);
+  const top = Math.min(new THREE.Box3().setFromObject(h).max.y, level >= 25 ? 60 : 200);
+  pl.top = top;
+  const lb = label(pl.nick.slice(0, 16), level, levelProgress(pl.bp)); lb.position.y = top + 2.2; g.add(lb); g.userData.label = lb;
   scene.add(g); p.group = g; pl.level = level;
   h.scale.set(1, .01, 1);
   animate(900, x => h.scale.set(1, Math.max(.01, easeOutBack(x)), 1));
   if (celebrate) {
-    burst(new THREE.Vector3(p.x, HOUSE_TOP[level] * .6, p.z), level >= 7 ? 0xffd23f : 0x8affc8, 30 + level * 8);
-    if (level >= 3) { focusOn(new THREE.Vector3(p.x, 0, p.z), HOUSE_TOP[level]); banner(`LEVEL ${level}!`, `${LEVELS[level][1]} · ${pl.nick}`); sfx('level'); }
+    burst(new THREE.Vector3(p.x, top * .6, p.z), level >= 20 ? 0xffd23f : 0x8affc8, Math.min(120, 30 + level * 4));
+    if (level >= 1) { if (level >= 3) focusOn(new THREE.Vector3(p.x, 0, p.z), Math.min(top, 50)); banner(`LEVEL ${level}!`, `${levelName(level)} · ${pl.nick}${celebrate.bonus ? ` · +${celebrate.bonus} Sek.` : ''}`); sfx('level'); }
     else sfx('build');
   }
 }
 function addBP(pl, amount) {
   if (!pl) return;
   pl.bp += amount;
-  const lv = levelFor(pl.bp);
-  if (lv !== pl.level) placeHouse(pl, lv, true);
+  const lv = levelFor(pl.bp), before = Math.max(0, pl.level);
+  if (lv !== pl.level) {
+    // milestone bonus: Level 10 = +10 s, Level 20 = +20 s, Level 30 = +30 s … (for the whole city)
+    let bonus = 0; const every = C.levels.bonusEveryLevels;
+    for (let m = Math.floor(before / every) + 1; m <= Math.floor(lv / every); m++) bonus += m * every * C.levels.bonusSecondsPerLevel;
+    placeHouse(pl, lv, { bonus });
+    if (bonus > 0) {
+      state.roundEnd += bonus * 1000;
+      timerBonus(`+${bonus} Sek. · ${pl.nick} Lv ${lv}`);
+      shout(`🏆 <b>${esc(pl.nick)}</b> erreicht Level ${Math.floor(lv / every) * every}! <b>+${bonus} Sekunden</b> für die ganze Stadt ⏳`, 'gold', pl.avatar);
+    }
+  } else refreshLabel(pl);
   dirty = true;
   scheduleRanking();
 }
@@ -325,7 +399,7 @@ function checkRanking() {
     const pool = RANK_TEXT[r];
     const text = pool[Math.floor(Math.random() * pool.length)].replace('{new}', esc(pNew.nick)).replace('{old}', esc(pOld.nick));
     shout(text, r === 0 ? 'gold' : r === 1 ? 'teal' : 'pink', pNew.avatar);
-    if (pNew.plot) burst(new THREE.Vector3(pNew.plot.x, HOUSE_TOP[Math.max(0, pNew.level)] + 3, pNew.plot.z), r === 0 ? 0xffd23f : 0xc0e8ff, r === 0 ? 70 : 35);
+    if (pNew.plot) burst(new THREE.Vector3(pNew.plot.x, (pNew.top || 4) + 3, pNew.plot.z), r === 0 ? 0xffd23f : 0xc0e8ff, r === 0 ? 70 : 35);
     sfx(r === 0 ? 'throne' : 'rank');
     lastRankShout = Date.now();
     break;                                        // only the most important change at a time
@@ -789,4 +863,4 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__game = { state, SIM, handle, nextQuestion, checkRanking };
+window.__game = { state, SIM, handle, nextQuestion, checkRanking, ensurePlayer, addBP, focusOn: (x, z, h) => focusOn(new THREE.Vector3(x, 0, z), h) };

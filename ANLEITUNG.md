@@ -5,7 +5,8 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | Zuschauer macht … | Im Spiel passiert … |
 |---|---|
 | 💬 schreibt **„Haus“** (oder „mitmachen“, „join“) | bekommt ein Grundstück mit seinem Namen (Baustelle) |
-| 🌹 schickt **Geschenke** | 1 Coin = 1 Baupunkt → das Haus wächst (Zelt → Hütte → … → Villa → Hochhaus → **Löwen-Turm**) |
+| 🌹 schickt **Geschenke** | 1 Coin = 1 Baupunkt. **Alle 100 Baupunkte = 1 Level** (Level 10 = 1.000, Level 20 = 2.000 …, ohne Obergrenze). Das Haus wird mit jedem Level schöner: Zelt → Hütte → Villa → Große Villa mit Garten → Hochhaus (jedes Level ein Stockwerk mehr, Antenne, Hubschrauberlandeplatz) → **Gold-Turm** (ab 20) → **Löwen-Turm** (ab 30) → **Diamant-Turm** (ab 40) → **Weltwunder** (ab 50). Über jedem Haus: Name, Level und Fortschrittsbalken |
+| 🏆 erreicht **Level 10, 20, 30 …** | **+10 / +20 / +30 … Sekunden** für die ganze Stadt, mit Einblendung |
 | 🧠 antwortet beim **Quiz** mit **A, B oder C** | jede Person kann **einmal** antworten (die erste Antwort zählt); richtig = **+10 Baupunkte** (wie 10 Rosen), die Namen der Richtigen werden eingeblendet. **Timer:** jede richtige Antwort +0,2 Sek., jede falsche −0,5 Sek. (nie unter 30 Sek. Restzeit) |
 | ❤️ schickt **Likes** | füllt das Like-Ziel (Löwen-Statue …) + alle 50 Likes 1 Baupunkt |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
@@ -54,6 +55,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
+| `levels` | Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus bei jedem 10er-Level (`bonusEveryLevels`, `bonusSecondsPerLevel`) |
 | `happyHour` | Faktor (`multiplier`), wie oft (`randomEveryMinutes`), wie lange (`randomDurationMinutes`), ab wie vielen Coins sie ausgelöst wird (`triggerCoins`) und wie lange dann (`triggerMinutes`) |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 
