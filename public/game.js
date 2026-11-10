@@ -16,7 +16,7 @@ const C = {
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
-  happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [2, 3], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
+  happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [2, 2], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
   joinWords: (CFG.joinWords || ['haus', 'join', 'mitmachen']).map(s => s.toLowerCase()),
 };
 const $ = id => document.getElementById(id);
