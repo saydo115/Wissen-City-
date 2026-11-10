@@ -5,7 +5,7 @@
   "roundMinutes": 20,
   "timerBonus": {
     "enabled": true,
-    "coinsPerSecond": 50
+    "coinsPerSecond": 30
   },
   "coinGoal": {
     "names": [

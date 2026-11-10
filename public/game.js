@@ -8,7 +8,7 @@ const CFG = await fetch('/config.json').then(r => r.json()).catch(() => ({}));
 const C = {
   cityName: CFG.cityName || 'Wissens-City',
   roundMinutes: CFG.roundMinutes || 20,
-  timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 50 },
+  timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
   quiz: CFG.quiz || { everySeconds: 70, answerSeconds: 20, pointsCorrect: 2, pointsFirst: 5 },
@@ -310,8 +310,10 @@ function handle(ev) {
       addBP(pl, coins);
       state.coins += coins;
       if (C.timerBonus.enabled) {
-        const secs = Math.floor(coins / C.timerBonus.coinsPerSecond);
-        if (secs > 0) { state.roundEnd += secs * 1000; timerBonus(`+${secs} Sek. · ${pl.nick}`); }
+        // coins are collected, so small gifts (e.g. single roses) also add time
+        state.timerCarry = (state.timerCarry || 0) + coins;
+        const secs = Math.floor(state.timerCarry / C.timerBonus.coinsPerSecond);
+        if (secs > 0) { state.timerCarry -= secs * C.timerBonus.coinsPerSecond; state.roundEnd += secs * 1000; timerBonus(`+${secs} Sek. · ${pl.nick}`); }
       }
       state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
       state.lastGifts.length = Math.min(state.lastGifts.length, 3);
@@ -411,9 +413,18 @@ function buildCommunity(kind, name) {
 // Quiz
 // =====================================================================================
 const quiz = { active: false, next: performance.now() + 15000, q: null, answers: new Map(), first: null, end: 0, deck: [] };
+// Questions are drawn from a shuffled deck that is saved in the browser:
+// no question repeats until ALL questions were asked – even across reloads, new cities and new streams.
 function nextQuestion() {
-  if (!quiz.deck.length) quiz.deck = [...QUESTIONS].sort(() => Math.random() - .5);
-  return quiz.deck.pop();
+  let used = [];
+  try { used = JSON.parse(localStorage.getItem('wissenscity_used') || '[]'); } catch { }
+  let left = QUESTIONS.filter(q => !used.includes(q.q));
+  if (!left.length) { used = []; left = [...QUESTIONS]; }
+  const q = left[Math.floor(Math.random() * left.length)];
+  used.push(q.q);
+  try { localStorage.setItem('wissenscity_used', JSON.stringify(used)); } catch { }
+  quiz.left = left.length - 1;
+  return q;
 }
 function startQuiz() {
   quiz.q = nextQuestion(); quiz.active = true; quiz.answers.clear(); quiz.first = null;
@@ -666,4 +677,4 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__game = { state, SIM, handle };
+window.__game = { state, SIM, handle, nextQuestion };

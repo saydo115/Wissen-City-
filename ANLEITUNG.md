@@ -14,7 +14,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 🎆 Geschenk ab **100 Coins** | Feuerwerk über seinem Haus + Dank-Einblendung mit Namen |
 | 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ |
 
-Alle 70 Sekunden kommt eine Quizfrage. Nach 20 Minuten startet eine **neue Stadt** – große Geschenke verlängern die Zeit (50 Coins = +1 Sekunde).
+Alle 70 Sekunden kommt eine Quizfrage. Nach 20 Minuten startet eine **neue Stadt** – Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
 
 ---
 
@@ -54,7 +54,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 
-**Eigene Quizfragen:** in `public/questions.js` im gleichen Format ergänzen.
+**Quizfragen:** Es gibt über 200 Fragen. Keine Frage wiederholt sich, bevor nicht alle einmal dran waren – auch nicht nach einem Neustart oder in deinem nächsten LIVE (der Browser merkt sich die gestellten Fragen). Eigene Fragen kannst du in `public/questions.js` im gleichen Format ergänzen.
 
 ---
 
