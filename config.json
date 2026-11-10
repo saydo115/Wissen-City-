@@ -72,5 +72,24 @@
     "join",
     "mitmachen",
     "dabei"
-  ]
+  ],
+  "mentions": {
+    "minCoinsPerGift": 2
+  },
+  "voice": {
+    "enabled": true,
+    "minCoinsPerGift": 2,
+    "rate": 1.05,
+    "pitch": 1.0,
+    "volume": 1.0,
+    "preferVoices": [
+      "Natural",
+      "Online",
+      "Google",
+      "Katja",
+      "Conrad",
+      "Hedda",
+      "Stefan"
+    ]
+  }
 }

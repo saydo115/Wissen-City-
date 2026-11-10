@@ -13,6 +13,8 @@ const C = {
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
   quiz: Object.assign({ everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
+  mentions: Object.assign({ minCoinsPerGift: 2 }, CFG.mentions || {}),
+  voice: Object.assign({ enabled: true, minCoinsPerGift: 2, rate: 1.05, pitch: 1, volume: 1, preferVoices: ['Natural', 'Online', 'Google', 'Katja', 'Conrad', 'Hedda', 'Stefan'] }, CFG.voice || {}),
   levels: Object.assign({ pointsPerLevel: 100, bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
@@ -316,7 +318,7 @@ function freePlot() {
 }
 function removeHouse(pl) { if (!pl.plot) return; scene.remove(pl.plot.group); pl.plot.owner = null; pl.plot.group = null; pl.plot = null; }
 
-function ensurePlayer(id, nick, avatar) {
+function ensurePlayer(id, nick, avatar, quiet = false) {
   let pl = state.players.get(id);
   if (!pl) {
     pl = { id, nick: nick || id, avatar: avatar || '', bp: 0, level: -1, plot: null, likes: 0, shares: 0 };
@@ -324,7 +326,7 @@ function ensurePlayer(id, nick, avatar) {
     const p = freePlot(); if (!p) return pl;
     pl.plot = p; p.owner = pl;
     placeHouse(pl, 0, false);
-    toast(`👋 <b>${esc(pl.nick)}</b> zieht in die Stadt!`);
+    if (!quiet) toast(`👋 <b>${esc(pl.nick)}</b> zieht in die Stadt!`);
   } else if (nick) pl.nick = nick;
   return pl;
 }
@@ -429,7 +431,8 @@ function handle(ev) {
       break;
     }
     case 'gift': {
-      const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
+      const unitPrice = ev.unit || Math.max(1, Math.round((ev.coins || 1) / (ev.count || 1)));
+      const pl = ensurePlayer(ev.user, ev.nick, ev.avatar, unitPrice < C.mentions.minCoinsPerGift);
       const coins = ev.coins || 1;
       addBP(pl, coins * mult());
       state.coins += coins;
@@ -439,9 +442,14 @@ function handle(ev) {
         const secs = Math.floor(state.timerCarry / C.timerBonus.coinsPerSecond);
         if (secs > 0) { state.timerCarry -= secs * C.timerBonus.coinsPerSecond; state.roundEnd += secs * 1000; timerBonus(`+${secs} Sek. · ${pl.nick}`); }
       }
-      state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
-      state.lastGifts.length = Math.min(state.lastGifts.length, 3);
-      toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet${happyOn() ? ' · <b>x' + C.happy.multiplier + '</b> 🎉' : ''}`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
+      const unit = ev.unit || Math.max(1, Math.round(coins / (ev.count || 1)));
+      const mention = unit >= C.mentions.minCoinsPerGift;          // single roses (1 coin) count, but are not announced
+      if (mention) {
+        state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
+        state.lastGifts.length = Math.min(state.lastGifts.length, 3);
+      }
+      if (unit >= C.voice.minCoinsPerGift) sayThanks(pl.nick, ev.giftName, ev.count || 1, coins);
+      if (mention) toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet${happyOn() ? ' · <b>x' + C.happy.multiplier + '</b> 🎉' : ''}`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
       if (coins >= C.happy.triggerCoins) startHappy(C.happy.triggerMinutes, pl.nick, coins >= C.bigGifts.megaFrom ? 3700 : 0);
       if (coins >= C.bigGifts.megaFrom) megaGift(pl, ev, coins);
       else if (coins >= C.bigGifts.fireworksFrom) {
@@ -520,6 +528,43 @@ function updateHappy(t) {
   });
   scene.background.lerp(on ? happyBg.setHSL((t * .00005) % 1, .55, .12) : nightBg, .03);
   return k;
+}
+// =====================================================================================
+// Spoken thank-you (browser speech synthesis – on Windows/Edge natural German voices)
+// =====================================================================================
+const speech = { voice: null, queue: [], busy: false, unlocked: false };
+function pickVoice() {
+  if (!('speechSynthesis' in window)) return;
+  const de = speechSynthesis.getVoices().filter(v => /^de(-|_|$)/i.test(v.lang));
+  for (const pref of C.voice.preferVoices) { const v = de.find(v => v.name.toLowerCase().includes(pref.toLowerCase())); if (v) { speech.voice = v; break; } }
+  if (!speech.voice) speech.voice = de[0] || null;
+  if (speech.voice) console.log('[Stimme]', speech.voice.name);
+}
+if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+// make usernames speakable: "lisa_mueller99" -> "lisa mueller"
+const speakName = n => (String(n).normalize('NFKC').replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/[_.\-]+/g, ' ').replace(/\s+/g, ' ').trim()).replace(/^(.*?)$/, m => m.replace(/\d+/g, '').replace(/\s+/g, ' ').trim() || m) || 'du';
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function sayThanks(nick, gift, count, coins) {
+  if (!C.voice.enabled || !('speechSynthesis' in window)) return;
+  const n = speakName(nick), g = String(gift || 'das Geschenk');
+  const what = count > 1 ? `${count} mal ${g}` : g;
+  let text;
+  if (coins >= 1000) text = pick([`Unglaublich! ${n}, tausend Dank für ${what}! Du bist ein Held der Stadt!`, `Wow, ${n}! Vielen, vielen Dank für ${what}! Das ist der Wahnsinn!`]);
+  else if (coins >= 100) text = pick([`Wahnsinn, ${n}! Vielen Dank für ${what}!`, `${n}, du bist super! Danke für ${what}!`]);
+  else if (coins >= 30) text = pick([`Wow, danke ${n} für ${what}! Dein Haus wächst!`, `Danke dir, ${n}, für ${what}!`]);
+  else text = pick([`Danke, ${n}!`, `Lieben Dank, ${n}!`, `Danke dir, ${n}, das ist lieb!`]);
+  if (speech.queue.length >= 4) speech.queue.splice(0, speech.queue.length - 3);  // don't fall behind during gift storms
+  speech.queue.push(text); nextSpeech();
+}
+function nextSpeech() {
+  if (speech.busy || !speech.queue.length) return;
+  const u = new SpeechSynthesisUtterance(speech.queue.shift());
+  u.lang = 'de-DE'; if (speech.voice) u.voice = speech.voice;
+  u.rate = C.voice.rate; u.pitch = C.voice.pitch; u.volume = C.voice.volume;
+  speech.busy = true;
+  u.onend = u.onerror = () => { speech.busy = false; setTimeout(nextSpeech, 250); };
+  speechSynthesis.speak(u);
+  setTimeout(() => { if (speech.busy) { speech.busy = false; nextSpeech(); } }, 12000); // safety
 }
 const giftHtml = (name, img) => img ? `<img class="gimg" src="${esc(img)}" alt="" referrerpolicy="no-referrer">` : giftIcon(name);
 function megaGift(pl, ev, coins) {
@@ -742,7 +787,13 @@ camPos.set(0, 105, 140);
 // Sound (small synthesized effects, no files needed)
 // =====================================================================================
 let actx = null;
-addEventListener('pointerdown', () => { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); }, { once: true });
+function unlockAudio() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  if ('speechSynthesis' in window && !speech.unlocked) { speech.unlocked = true; const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }
+  $('unlock').classList.add('hidden');
+}
+addEventListener('pointerdown', unlockAudio, { once: true });
+addEventListener('keydown', unlockAudio, { once: true });
 function tone(f, d, type = 'sine', vol = .15, slide = 0) {
   if (!actx) return; const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
   o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(f * slide, t + d);
@@ -783,8 +834,9 @@ const bot = () => { const n = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.len
 let autoDemo = null;
 const SIM = {
   join: () => handle({ type: 'chat', ...bot(), text: 'Ich will ein Haus' }),
-  rose: () => handle({ type: 'gift', ...bot(), giftName: 'Rose', count: 1, coins: 1 }),
-  rose10: () => handle({ type: 'gift', ...bot(), giftName: 'Rose', count: 10, coins: 10 }),
+  rose: () => handle({ type: 'gift', ...bot(), giftName: 'Rose', count: 1, unit: 1, coins: 1 }),
+  small: () => handle({ type: 'gift', ...bot(), giftName: 'Finger Heart', count: 1, unit: 5, coins: 5 }),
+  rose10: () => handle({ type: 'gift', ...bot(), giftName: 'Rose', count: 10, unit: 1, coins: 10 }),
   big: () => handle({ type: 'gift', ...bot(), giftName: 'Löwe', count: 1, coins: 99 }),
   huge: () => handle({ type: 'gift', ...bot(), giftName: 'Universum', count: 1, coins: 500 }),
   likes: () => handle({ type: 'like', ...bot(), count: 500 }),
@@ -874,4 +926,4 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__game = { state, SIM, handle, nextQuestion, checkRanking, ensurePlayer, addBP, focusOn: (x, z, h) => focusOn(new THREE.Vector3(x, 0, z), h) };
+window.__game = { state, SIM, speech, sayThanks, handle, nextQuestion, checkRanking, ensurePlayer, addBP, focusOn: (x, z, h) => focusOn(new THREE.Vector3(x, 0, z), h) };

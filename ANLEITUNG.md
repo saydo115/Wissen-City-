@@ -12,6 +12,8 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
 | ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |
 | 🔁 **teilt** den LIVE | „🔁 **Name** hat geteilt! +10 Baupunkte“ (max. 3× pro Person und Runde) |
+| 🎁 Geschenk ab **2 Coins** (alles außer Rose) | Einblendung mit Namen + **gesprochenes Dankeschön** („Danke, Lisa!“ … bei großen Geschenken „Unglaublich! Lisa, tausend Dank für Galaxy!“) |
+| 🌹 einzelne **Rosen** (1 Coin) | zählen als Baupunkte, werden aber **nicht** eingeblendet oder angesagt (sonst wird es zu voll) |
 | 🎆 Geschenk ab **100 Coins** | Feuerwerk über seinem Haus + Dank-Einblendung mit Namen |
 | 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ **+ startet 4 Minuten Happy Hour** |
 | 👑 **Top 3 ändert sich** | freundliche Ansage, z. B. „👑 **Lisa** erobert den Thron! **Tom** wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄“ |
@@ -43,6 +45,12 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 4. In **TikTok LIVE Studio** eine Quelle hinzufügen → **Fenster aufnehmen** → das Browser-Fenster mit dem Spiel wählen. Layout auf **Hochformat** stellen.
    - Alternative mit **OBS**: Quelle **„Browser“** → URL `http://localhost:8080`, Breite **1080**, Höhe **1920**.
 5. Im Spiel kannst du mit der Taste **D** das Test-Panel ein-/ausblenden.
+6. **Ton & Stimme aktivieren:** Beim Start erscheint ein gelber Knopf „🔊 Einmal hier klicken …“ – **einmal anklicken** (Browser erlauben Ton erst nach einem Klick). Der Knopf verschwindet dann.
+
+## 🔊 Die Dankes-Stimme
+- Die Stimme kommt von deinem PC (Sprachausgabe des Browsers). **Am schönsten klingt sie in Microsoft Edge** – dort gibt es die natürlichen Stimmen „Katja“ und „Conrad“. In Chrome wird „Google Deutsch“ genutzt.
+- Damit die Zuschauer die Stimme hören, muss **TikTok LIVE Studio den PC-Ton mit aufnehmen**: in LIVE Studio bei den Audio-Einstellungen den **Desktop-/System-Ton (Lautsprecher)** aktivieren. Bei OBS mit Browser-Quelle: „Audio über OBS steuern“ anhaken.
+- Lautstärke, Tempo und ab wie vielen Coins gedankt wird: in `config.json` unter `voice` (`volume`, `rate`, `minCoinsPerGift`). Ausschalten mit `"enabled": false`.
 
 ## 4. Anpassen (`config.json`)
 
@@ -56,6 +64,8 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
 | `levels` | Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus pro Level (`bonusSecondsPerLevel`, Standard 1 → Level × 1 Sek.) |
+| `mentions` | ab wie vielen Coins **pro Geschenk** jemand eingeblendet wird (`minCoinsPerGift`, Standard 2 = keine einzelnen Rosen) |
+| `voice` | gesprochener Dank: an/aus, ab wie vielen Coins, Lautstärke, Tempo, bevorzugte Stimmen |
 | `happyHour` | Faktor (`multiplier`), wie oft (`randomEveryMinutes`), wie lange (`randomDurationMinutes`), ab wie vielen Coins sie ausgelöst wird (`triggerCoins`) und wie lange dann (`triggerMinutes`) |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 

@@ -67,7 +67,7 @@ async function startTikTok() {
     const name = d.giftDetails?.giftName || d.giftName || d.extendedGiftInfo?.name || 'Geschenk';
     if (!loggedGift) { loggedGift = true; console.log('[Erstes Geschenk – Rohdaten zur Kontrolle]', JSON.stringify({ name, diamonds, repeat, giftType })); }
     const giftImage = d.giftPictureUrl || d.giftDetails?.giftImage?.url?.[0] || d.extendedGiftInfo?.image?.url_list?.[0] || '';
-    broadcast({ type: 'gift', ...userOf(d), giftName: name, count: repeat, coins: Math.max(1, diamonds) * repeat, giftImage });
+    broadcast({ type: 'gift', ...userOf(d), giftName: name, count: repeat, unit: Math.max(1, diamonds), coins: Math.max(1, diamonds) * repeat, giftImage });
   });
   connection.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', ...userOf(d) }));
   connection.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', ...userOf(d) }));
