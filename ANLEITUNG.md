@@ -9,6 +9,10 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 🧠 antwortet beim **Quiz** mit **A, B oder C** | richtig = +2 Baupunkte, die/der Schnellste +5 extra |
 | ❤️ schickt **Likes** | füllt das Like-Ziel (Löwen-Statue …) + alle 50 Likes 1 Baupunkt |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
+| ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |
+| 🔁 **teilt** den LIVE | „🔁 **Name** hat geteilt! +10 Baupunkte“ (max. 3× pro Person und Runde) |
+| 🎆 Geschenk ab **100 Coins** | Feuerwerk über seinem Haus + Dank-Einblendung mit Namen |
+| 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ |
 
 Alle 70 Sekunden kommt eine Quizfrage. Nach 20 Minuten startet eine **neue Stadt** – große Geschenke verlängern die Zeit (50 Coins = +1 Sekunde).
 
@@ -45,6 +49,9 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `timerBonus` | Zeitverlängerung durch Coins an/aus (`"enabled": false`) |
 | `coinGoal` / `likeGoal` | Namen und Größe der Gemeinschafts-Ziele |
 | `quiz` | Abstand der Fragen, Antwortzeit, Punkte |
+| `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
+| `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
+| `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 
 **Eigene Quizfragen:** in `public/questions.js` im gleichen Format ergänzen.

@@ -1,16 +1,53 @@
 {
   "tiktokUsername": "DEIN_TIKTOK_NAME",
   "port": 8080,
-
   "cityName": "Wissens-City",
   "roundMinutes": 20,
-  "timerBonus": { "enabled": true, "coinsPerSecond": 50 },
-
-  "coinGoal": { "names": ["Stadion", "Riesenrad", "Flughafen", "Raketenstart"], "target": 5000 },
-  "likeGoal": { "names": ["Löwen-Statue", "Springbrunnen", "Leuchtturm", "Goldener Löwe"], "target": 10000 },
-
-  "quiz": { "everySeconds": 70, "answerSeconds": 20, "pointsCorrect": 2, "pointsFirst": 5 },
-
+  "timerBonus": {
+    "enabled": true,
+    "coinsPerSecond": 50
+  },
+  "coinGoal": {
+    "names": [
+      "Stadion",
+      "Riesenrad",
+      "Flughafen",
+      "Raketenstart"
+    ],
+    "target": 5000
+  },
+  "likeGoal": {
+    "names": [
+      "Löwen-Statue",
+      "Springbrunnen",
+      "Leuchtturm",
+      "Goldener Löwe"
+    ],
+    "target": 10000
+  },
+  "quiz": {
+    "everySeconds": 70,
+    "answerSeconds": 20,
+    "pointsCorrect": 2,
+    "pointsFirst": 5
+  },
   "likesPerBuildPoint": 50,
-  "joinWords": ["haus", "ich will ein haus", "join", "mitmachen", "dabei"]
+  "bigGifts": {
+    "fireworksFrom": 100,
+    "megaFrom": 1000
+  },
+  "follow": {
+    "bonusPoints": 0
+  },
+  "share": {
+    "bonusPoints": 10,
+    "maxPerUserPerRound": 3
+  },
+  "joinWords": [
+    "haus",
+    "ich will ein haus",
+    "join",
+    "mitmachen",
+    "dabei"
+  ]
 }

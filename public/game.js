@@ -13,6 +13,9 @@ const C = {
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
   quiz: CFG.quiz || { everySeconds: 70, answerSeconds: 20, pointsCorrect: 2, pointsFirst: 5 },
   likesPerBP: CFG.likesPerBuildPoint || 50,
+  bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
+  follow: CFG.follow || { bonusPoints: 0 },
+  share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
   joinWords: (CFG.joinWords || ['haus', 'join', 'mitmachen']).map(s => s.toLowerCase()),
 };
 const $ = id => document.getElementById(id);
@@ -250,7 +253,7 @@ function removeHouse(pl) { if (!pl.plot) return; scene.remove(pl.plot.group); pl
 function ensurePlayer(id, nick, avatar) {
   let pl = state.players.get(id);
   if (!pl) {
-    pl = { id, nick: nick || id, avatar: avatar || '', bp: 0, level: -1, plot: null, likes: 0 };
+    pl = { id, nick: nick || id, avatar: avatar || '', bp: 0, level: -1, plot: null, likes: 0, shares: 0 };
     state.players.set(id, pl);
     const p = freePlot(); if (!p) return pl;
     pl.plot = p; p.owner = pl;
@@ -310,10 +313,32 @@ function handle(ev) {
         const secs = Math.floor(coins / C.timerBonus.coinsPerSecond);
         if (secs > 0) { state.roundEnd += secs * 1000; timerBonus(`+${secs} Sek. · ${pl.nick}`); }
       }
-      state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins });
+      state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
       state.lastGifts.length = Math.min(state.lastGifts.length, 3);
-      toast(`${giftIcon(ev.giftName)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
+      toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
+      if (coins >= C.bigGifts.megaFrom) megaGift(pl, ev, coins);
+      else if (coins >= C.bigGifts.fireworksFrom) {
+        if (pl.plot) fireworks(new THREE.Vector3(pl.plot.x, 0, pl.plot.z).add(new THREE.Vector3(0, -15, 0)), 3);
+        shout(`🎆 <b>${esc(pl.nick)}</b> schickt ${giftHtml(ev.giftName, ev.giftImage)} ${esc(ev.giftName)}! Danke! 🦁`, 'gold');
+      }
       checkGoals(); dirty = true; sfx('gift');
+      break;
+    }
+    case 'follow': {
+      const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
+      if (C.follow.bonusPoints) addBP(pl, C.follow.bonusPoints);
+      shout(`❤️ Danke fürs Folgen, <b>${esc(pl.nick)}</b>!${C.follow.bonusPoints ? ` +${C.follow.bonusPoints} Baupunkte` : ' Willkommen in der Stadt 🏠'}`, 'pink', ev.avatar);
+      sfx('follow');
+      break;
+    }
+    case 'share': {
+      const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
+      if (pl.shares < C.share.maxPerUserPerRound) {
+        pl.shares++; addBP(pl, C.share.bonusPoints);
+        shout(`🔁 <b>${esc(pl.nick)}</b> hat geteilt! +${C.share.bonusPoints} Baupunkte 🏗️`, 'teal', ev.avatar);
+        if (pl.plot) burst(new THREE.Vector3(pl.plot.x, 6, pl.plot.z), 0x33d6d6, 40);
+      } else shout(`🔁 Danke fürs Teilen, <b>${esc(pl.nick)}</b>!`, 'teal', ev.avatar);
+      sfx('share');
       break;
     }
     case 'like': {
@@ -324,6 +349,26 @@ function handle(ev) {
       break;
     }
   }
+}
+const giftHtml = (name, img) => img ? `<img class="gimg" src="${esc(img)}" alt="" referrerpolicy="no-referrer">` : giftIcon(name);
+function megaGift(pl, ev, coins) {
+  // city-wide fireworks + flash + big thank-you
+  const flash = $('flash'); flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+  for (let k = 0; k < 4; k++) setTimeout(() => fireworks(new THREE.Vector3((Math.random() - .5) * 80, -10, (Math.random() - .5) * 100), 5), k * 900);
+  banner(`${giftIcon(ev.giftName) === '🎁' ? '🎁' : giftIcon(ev.giftName)} ${String(ev.giftName).toUpperCase()}!`, `von ${pl.nick} – DANKE! 🦁`, 'mega');
+  shout(`👑 <b>${esc(pl.nick)}</b> ist ein Held der Stadt! ${giftHtml(ev.giftName, ev.giftImage)} ${fmt(coins)} Coins`, 'gold', ev.avatar);
+  sfx('mega');
+}
+const shoutQueue = []; let shoutBusy = false;
+function shout(html, color = 'gold', avatar = '') { shoutQueue.push({ html, color, avatar }); if (!shoutBusy) nextShout(); }
+function nextShout() {
+  const it = shoutQueue.shift(); const el = $('shout');
+  if (!it) { shoutBusy = false; el.classList.add('hidden'); return; }
+  shoutBusy = true;
+  el.className = 'shout ' + it.color;
+  el.innerHTML = (it.avatar ? `<img src="${esc(it.avatar)}" alt="" referrerpolicy="no-referrer">` : '') + `<span>${it.html}</span>`;
+  void el.offsetWidth; el.classList.add('in');
+  setTimeout(nextShout, shoutQueue.length > 3 ? 1600 : 3000);
 }
 const giftIcon = n => /rose/i.test(n || '') ? '🌹' : /lion|löwe/i.test(n || '') ? '🦁' : /universe|universum|galaxy|galaxie/i.test(n || '') ? '🌌' : '🎁';
 
@@ -423,7 +468,7 @@ function renderHUD() {
   const top = players.sort((a, b) => b.bp - a.bp).slice(0, 3);
   $('top3').innerHTML = top.map((p, i) => `<div class="entry"><span class="medal">${['🥇', '🥈', '🥉'][i]}</span><span class="n">${esc(p.nick)}</span><span class="lv">Lv ${Math.max(0, p.level)}</span></div>`).join('')
     || '<div class="entry"><span class="n">Schreib „Haus“ 🏠</span></div>';
-  $('lastGifts').innerHTML = state.lastGifts.map(g => `<div class="entry"><span class="medal">${giftIcon(g.gift)}</span><span class="n">${esc(g.nick)}<small>${g.count > 1 ? g.count + '× ' : ''}${esc(g.gift)} · +${fmt(g.bp)} BP</small></span></div>`).join('')
+  $('lastGifts').innerHTML = state.lastGifts.map(g => `<div class="entry"><span class="medal">${giftHtml(g.gift, g.img)}</span><span class="n">${esc(g.nick)}<small>${g.count > 1 ? g.count + '× ' : ''}${esc(g.gift)} · +${fmt(g.bp)} BP</small></span></div>`).join('')
     || '<div class="entry"><span class="n">Noch keine 🌹</span></div>';
   $('timerSub').textContent = C.timerBonus.enabled ? `${C.timerBonus.coinsPerSecond} Coins = +1 Sek.` : 'Runde läuft';
   dirty = false;
@@ -434,11 +479,24 @@ function toast(html, x = '', avatar = '') {
   $('toasts').prepend(el); while ($('toasts').children.length > 3) $('toasts').lastChild.remove();
   setTimeout(() => el.remove(), 4200);
 }
-let bannerTimer = null;
-function banner(title, sub) {
-  const b = $('banner'); $('bTitle').textContent = title; $('bSub').textContent = sub;
-  b.classList.add('hidden'); void b.offsetWidth; b.classList.remove('hidden');
-  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.add('hidden'), 2600);
+const bannerQueue = []; let bannerBusy = false, bannerCur = null, bannerTimer = null;
+function banner(title, sub, kind = '') {
+  const it = { title, sub, kind };
+  if (kind === 'mega') {                       // big gifts interrupt everything and show immediately
+    if (bannerCur && bannerCur.kind !== 'mega') bannerQueue.unshift(bannerCur);
+    bannerQueue.unshift(it); clearTimeout(bannerTimer); nextBanner(); return;
+  }
+  bannerQueue.push(it); if (bannerQueue.length > 4) bannerQueue.length = 4;
+  if (!bannerBusy) nextBanner();
+}
+function nextBanner() {
+  const it = bannerQueue.shift(); const b = $('banner');
+  bannerCur = it || null;
+  if (!it) { bannerBusy = false; b.classList.add('hidden'); return; }
+  bannerBusy = true;
+  $('bTitle').textContent = it.title; $('bSub').textContent = it.sub;
+  b.className = 'hidden'; void b.offsetWidth; b.className = it.kind;
+  bannerTimer = setTimeout(nextBanner, it.kind === 'mega' ? 3600 : 2600);
 }
 let bonusTimer = null;
 function timerBonus(text) { const el = $('timerBonus'); el.textContent = text; el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
@@ -495,6 +553,9 @@ function sfx(k) {
   if (k === 'right') { tone(784, .15, 'triangle', .12); setTimeout(() => tone(1046, .3, 'triangle', .12), 140); }
   if (k === 'wrong') tone(220, .4, 'sawtooth', .06, .7);
   if (k === 'boom') tone(90, .5, 'sine', .2, .5);
+  if (k === 'follow') { tone(660, .12, 'sine', .1); setTimeout(() => tone(880, .2, 'sine', .1), 110); }
+  if (k === 'share') { tone(500, .1, 'triangle', .1, 1.8); setTimeout(() => tone(900, .2, 'triangle', .1), 120); }
+  if (k === 'mega') { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, .35, 'triangle', .13), i * 110)); }
 }
 
 // =====================================================================================
@@ -521,6 +582,9 @@ const SIM = {
   big: () => handle({ type: 'gift', ...bot(), giftName: 'Löwe', count: 1, coins: 99 }),
   huge: () => handle({ type: 'gift', ...bot(), giftName: 'Universum', count: 1, coins: 500 }),
   likes: () => handle({ type: 'like', ...bot(), count: 500 }),
+  galaxy: () => handle({ type: 'gift', ...bot(), giftName: 'Galaxy', count: 1, coins: 1000 }),
+  follow: () => handle({ type: 'follow', ...bot() }),
+  share: () => handle({ type: 'share', ...bot() }),
   quiz: () => { if (!quiz.active) startQuiz(); },
   answers: () => { if (!quiz.active) startQuiz(); for (let i = 0; i < 14; i++) setTimeout(() => quiz.active && handle({ type: 'chat', ...bot(), text: Math.random() < .6 ? 'abc'[quiz.q.c] : 'abc'[Math.floor(Math.random() * 3)] }), i * 400); },
   auto: () => {
