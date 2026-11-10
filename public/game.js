@@ -325,7 +325,7 @@ function handle(ev) {
     }
   }
 }
-const giftIcon = n => /rose/i.test(n || '') ? '🌹' : /lion|löwe/i.test(n || '') ? '🦁' : /universe|universum/i.test(n || '') ? '🌌' : '🎁';
+const giftIcon = n => /rose/i.test(n || '') ? '🌹' : /lion|löwe/i.test(n || '') ? '🦁' : /universe|universum|galaxy|galaxie/i.test(n || '') ? '🌌' : '🎁';
 
 function checkGoals() {
   while (state.coins >= state.coinTarget) {
