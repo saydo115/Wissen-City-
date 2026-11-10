@@ -28,8 +28,8 @@
   "quiz": {
     "everySeconds": 70,
     "answerSeconds": 20,
-    "pointsCorrect": 2,
-    "pointsFirst": 5
+    "pointsCorrect": 10,
+    "pointsFirst": 0
   },
   "likesPerBuildPoint": 50,
   "bigGifts": {

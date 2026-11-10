@@ -6,7 +6,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 |---|---|
 | 💬 schreibt **„Haus“** (oder „mitmachen“, „join“) | bekommt ein Grundstück mit seinem Namen (Baustelle) |
 | 🌹 schickt **Geschenke** | 1 Coin = 1 Baupunkt → das Haus wächst (Zelt → Hütte → … → Villa → Hochhaus → **Löwen-Turm**) |
-| 🧠 antwortet beim **Quiz** mit **A, B oder C** | richtig = +2 Baupunkte, die/der Schnellste +5 extra |
+| 🧠 antwortet beim **Quiz** mit **A, B oder C** | jede Person kann **einmal** antworten (die erste Antwort zählt); richtig = **+10 Baupunkte** (wie 10 Rosen), die Namen der Richtigen werden eingeblendet |
 | ❤️ schickt **Likes** | füllt das Like-Ziel (Löwen-Statue …) + alle 50 Likes 1 Baupunkt |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
 | ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |

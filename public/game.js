@@ -11,7 +11,7 @@ const C = {
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
-  quiz: CFG.quiz || { everySeconds: 70, answerSeconds: 20, pointsCorrect: 2, pointsFirst: 5 },
+  quiz: CFG.quiz || { everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0 },
   likesPerBP: CFG.likesPerBuildPoint || 50,
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
@@ -347,7 +347,7 @@ function handle(ev) {
     }
     case 'chat': {
       const t = (ev.text || '').trim().toLowerCase();
-      const m = t.match(/^([abc])\b[\s).!]*$/);
+      const m = t.match(/^(?:antwort\s*)?([abc])\s*[).!:]*\s*$/);
       if (m && quiz.active) { quizAnswer(ev, 'abc'.indexOf(m[1])); break; }
       if (C.joinWords.some(w => t.includes(w))) ensurePlayer(ev.user, ev.nick, ev.avatar);
       break;
@@ -525,7 +525,7 @@ function startQuiz() {
   ['qA', 'qB', 'qC'].forEach((id, i) => $(id).textContent = quiz.q.a[i]);
   ['qCA', 'qCB', 'qCC'].forEach(id => $(id).textContent = '0');
   document.querySelectorAll('.qopt').forEach(o => o.classList.remove('right', 'wrong'));
-  $('qHint').innerHTML = 'Schreib <b>A</b>, <b>B</b> oder <b>C</b> in den Chat! Richtig = Baupunkte 🏗️';
+  $('qHint').innerHTML = `Schreib <b>A</b>, <b>B</b> oder <b>C</b> in den Chat! Nur die erste Antwort zählt · richtig = <b>+${C.quiz.pointsCorrect * mult()}</b> Baupunkte 🌹`;
   $('quizLion').src = 'assets/lionQ.png';
   $('qFill').style.transition = 'none'; $('qFill').style.width = '100%';
   requestAnimationFrame(() => { $('qFill').style.transition = `width ${C.quiz.answerSeconds}s linear`; $('qFill').style.width = '0%'; });
@@ -544,10 +544,13 @@ function endQuiz() {
   document.querySelectorAll('.qopt').forEach(o => o.classList.add(+o.dataset.i === quiz.q.c ? 'right' : 'wrong'));
   $('quizLion').src = 'assets/lionA.png';
   for (const [id, a] of right) { const pl = ensurePlayer(id, a.nick, a.avatar); addBP(pl, (C.quiz.pointsCorrect + (id === quiz.first ? C.quiz.pointsFirst : 0)) * mult()); }
-  const firstNick = quiz.first ? quiz.answers.get(quiz.first).nick : null;
+  const firstNick = quiz.first && C.quiz.pointsFirst ? quiz.answers.get(quiz.first).nick : null;
+  const pts = C.quiz.pointsCorrect * mult();
+  const names = right.slice(0, 6).map(([, a]) => esc(a.nick)).join(', ') + (right.length > 6 ? ` +${right.length - 6} weitere` : '');
   $('qHint').innerHTML = right.length
-    ? `✅ <b>${right.length}</b> richtig! +${C.quiz.pointsCorrect} Baupunkte${firstNick ? ` · ⚡ Schnellste/r: <b>${esc(firstNick)}</b> +${C.quiz.pointsFirst}` : ''}`
-    : `Richtig war <b>${'ABC'[quiz.q.c]}</b> – niemand hatte es! 😮`;
+    ? `✅ Richtig (<b>${'ABC'[quiz.q.c]}</b>): <b>${names}</b> – je +${pts} Baupunkte 🌹${firstNick ? ` · ⚡ Schnellste/r: <b>${esc(firstNick)}</b> +${C.quiz.pointsFirst}` : ''}`
+    : `Richtig war <b>${'ABC'[quiz.q.c]}</b> – diesmal hatte es niemand! 😮`;
+  if (right.length) shout(`🧠 ${right.length === 1 ? '<b>' + names + '</b> hatte' : '<b>' + right.length + '</b> hatten'} die richtige Antwort – je +${pts} Baupunkte! 🎉`, 'teal');
   sfx(right.length ? 'right' : 'wrong');
   setTimeout(() => { $('quiz').classList.add('hidden'); $('howto').classList.remove('hidden'); }, 6000);
   quiz.next = performance.now() + C.quiz.everySeconds * 1000;
