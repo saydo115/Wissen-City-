@@ -12,7 +12,8 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |
 | 🔁 **teilt** den LIVE | „🔁 **Name** hat geteilt! +10 Baupunkte“ (max. 3× pro Person und Runde) |
 | 🎆 Geschenk ab **100 Coins** | Feuerwerk über seinem Haus + Dank-Einblendung mit Namen |
-| 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ |
+| 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ **+ startet 4 Minuten Happy Hour** |
+| 🎉 **Happy Hour** | kommt zufällig alle 8–15 Minuten für 1, 2, 3 oder 4 Minuten: **alle Baupunkte x2** (Geschenke, Quiz, Teilen), Party-Lichter und Countdown |
 
 Alle 70 Sekunden kommt eine Quizfrage. Nach 20 Minuten startet eine **neue Stadt** – Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
 
@@ -52,6 +53,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
+| `happyHour` | Faktor (`multiplier`), wie oft (`randomEveryMinutes`), wie lange (`randomDurationMinutes`), ab wie vielen Coins sie ausgelöst wird (`triggerCoins`) und wie lange dann (`triggerMinutes`) |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 
 **Quizfragen:** Es gibt über 200 Fragen. Keine Frage wiederholt sich, bevor nicht alle einmal dran waren – auch nicht nach einem Neustart oder in deinem nächsten LIVE (der Browser merkt sich die gestellten Fragen). Eigene Fragen kannst du in `public/questions.js` im gleichen Format ergänzen.

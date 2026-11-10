@@ -43,6 +43,21 @@
     "bonusPoints": 10,
     "maxPerUserPerRound": 3
   },
+  "happyHour": {
+    "multiplier": 2,
+    "randomEveryMinutes": [
+      8,
+      15
+    ],
+    "randomDurationMinutes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "triggerCoins": 1000,
+    "triggerMinutes": 4
+  },
   "joinWords": [
     "haus",
     "ich will ein haus",

@@ -16,6 +16,7 @@ const C = {
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
+  happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [8, 15], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
   joinWords: (CFG.joinWords || ['haus', 'join', 'mitmachen']).map(s => s.toLowerCase()),
 };
 const $ = id => document.getElementById(id);
@@ -48,6 +49,7 @@ const state = {
   coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target,
   roundEnd: Date.now() + C.roundMinutes * 60000,
   lastGifts: [], built: [],      // community buildings
+  happyUntil: 0,                 // Happy Hour end (timestamp)
 };
 
 // =====================================================================================
@@ -71,6 +73,8 @@ moon.shadow.mapSize.set(2048, 2048);
 Object.assign(moon.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 10, far: 260 });
 scene.add(moon);
 const warm = new THREE.PointLight(0xffb060, 1.2, 140, 1.2); warm.position.set(0, 25, 0); scene.add(warm);
+const partyLights = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xff00ff, 0, 120, 1.1); scene.add(L); return L; });
+const nightBg = new THREE.Color(0x0b1024), happyBg = new THREE.Color();
 
 // layout: blocks of 2x2 plots separated by roads
 const BX = 6, BZ = 8;               // blocks
@@ -307,7 +311,7 @@ function handle(ev) {
     case 'gift': {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
       const coins = ev.coins || 1;
-      addBP(pl, coins);
+      addBP(pl, coins * mult());
       state.coins += coins;
       if (C.timerBonus.enabled) {
         // coins are collected, so small gifts (e.g. single roses) also add time
@@ -317,7 +321,8 @@ function handle(ev) {
       }
       state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
       state.lastGifts.length = Math.min(state.lastGifts.length, 3);
-      toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
+      toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet${happyOn() ? ' · <b>x' + C.happy.multiplier + '</b> 🎉' : ''}`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
+      if (coins >= C.happy.triggerCoins) startHappy(C.happy.triggerMinutes, pl.nick, coins >= C.bigGifts.megaFrom ? 3700 : 0);
       if (coins >= C.bigGifts.megaFrom) megaGift(pl, ev, coins);
       else if (coins >= C.bigGifts.fireworksFrom) {
         if (pl.plot) fireworks(new THREE.Vector3(pl.plot.x, 0, pl.plot.z).add(new THREE.Vector3(0, -15, 0)), 3);
@@ -336,7 +341,7 @@ function handle(ev) {
     case 'share': {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
       if (pl.shares < C.share.maxPerUserPerRound) {
-        pl.shares++; addBP(pl, C.share.bonusPoints);
+        pl.shares++; addBP(pl, C.share.bonusPoints * mult());
         shout(`🔁 <b>${esc(pl.nick)}</b> hat geteilt! +${C.share.bonusPoints} Baupunkte 🏗️`, 'teal', ev.avatar);
         if (pl.plot) burst(new THREE.Vector3(pl.plot.x, 6, pl.plot.z), 0x33d6d6, 40);
       } else shout(`🔁 Danke fürs Teilen, <b>${esc(pl.nick)}</b>!`, 'teal', ev.avatar);
@@ -351,6 +356,49 @@ function handle(ev) {
       break;
     }
   }
+}
+// =====================================================================================
+// Happy Hour
+// =====================================================================================
+const happyOn = () => Date.now() < state.happyUntil;
+const mult = () => happyOn() ? C.happy.multiplier : 1;
+let nextRandomHappy = Date.now() + randMinutes(C.happy.randomEveryMinutes);
+function randMinutes([a, b]) { return (a + Math.random() * (b - a)) * 60000; }
+function startHappy(minutes, byNick = '', delay = 0) {
+  const wasOn = happyOn();
+  state.happyUntil = Math.max(state.happyUntil, Date.now() + minutes * 60000);
+  const total = Math.round((state.happyUntil - Date.now()) / 60000);
+  setTimeout(() => {
+    banner('🎉 HAPPY HOUR!', `${total} Minute${total === 1 ? '' : 'n'} · alle Baupunkte x${C.happy.multiplier}${byNick ? ' · dank ' + byNick : ''}`, wasOn ? '' : 'happy');
+    if (byNick) shout(`🎉 <b>${esc(byNick)}</b> startet ${minutes} Min. Happy Hour – alles x${C.happy.multiplier}!`, 'pink');
+    fireworks(plazaCenter, 6); sfx('happy');
+  }, delay);
+  dirty = true;
+  nextRandomHappy = state.happyUntil + randMinutes(C.happy.randomEveryMinutes);
+}
+function updateHappy(t) {
+  const on = happyOn(), el = $('happy');
+  if (!on && Date.now() > nextRandomHappy && !quiz.active) {
+    const d = C.happy.randomDurationMinutes; startHappy(d[Math.floor(Math.random() * d.length)]);
+  }
+  if (on) {
+    const rest = state.happyUntil - Date.now();
+    $('happyTime').textContent = `${Math.floor(rest / 60000)}:${String(Math.floor(rest / 1000) % 60).padStart(2, '0')}`;
+    $('happyMult').textContent = 'x' + C.happy.multiplier;
+    el.classList.remove('hidden');
+  } else if (!el.classList.contains('hidden')) {
+    el.classList.add('hidden'); shout('⏰ Happy Hour vorbei – danke an alle! 🦁', 'teal');
+  }
+  // party lights over the city
+  const k = on ? 1 : 0;
+  partyLights.forEach((L, i) => {
+    L.intensity += ((on ? 2.2 : 0) - L.intensity) * .05;
+    const a = t * .0007 + i * 2.09;
+    L.position.set(Math.cos(a) * 45, 22, Math.sin(a) * 55);
+    L.color.setHSL((t * .0001 + i / 3) % 1, 1, .55);
+  });
+  scene.background.lerp(on ? happyBg.setHSL((t * .00005) % 1, .55, .12) : nightBg, .03);
+  return k;
 }
 const giftHtml = (name, img) => img ? `<img class="gimg" src="${esc(img)}" alt="" referrerpolicy="no-referrer">` : giftIcon(name);
 function megaGift(pl, ev, coins) {
@@ -451,7 +499,7 @@ function endQuiz() {
   const right = [...quiz.answers.entries()].filter(([, a]) => a.idx === quiz.q.c);
   document.querySelectorAll('.qopt').forEach(o => o.classList.add(+o.dataset.i === quiz.q.c ? 'right' : 'wrong'));
   $('quizLion').src = 'assets/lionA.png';
-  for (const [id, a] of right) { const pl = ensurePlayer(id, a.nick, a.avatar); addBP(pl, C.quiz.pointsCorrect + (id === quiz.first ? C.quiz.pointsFirst : 0)); }
+  for (const [id, a] of right) { const pl = ensurePlayer(id, a.nick, a.avatar); addBP(pl, (C.quiz.pointsCorrect + (id === quiz.first ? C.quiz.pointsFirst : 0)) * mult()); }
   const firstNick = quiz.first ? quiz.answers.get(quiz.first).nick : null;
   $('qHint').innerHTML = right.length
     ? `✅ <b>${right.length}</b> richtig! +${C.quiz.pointsCorrect} Baupunkte${firstNick ? ` · ⚡ Schnellste/r: <b>${esc(firstNick)}</b> +${C.quiz.pointsFirst}` : ''}`
@@ -493,8 +541,8 @@ function toast(html, x = '', avatar = '') {
 const bannerQueue = []; let bannerBusy = false, bannerCur = null, bannerTimer = null;
 function banner(title, sub, kind = '') {
   const it = { title, sub, kind };
-  if (kind === 'mega') {                       // big gifts interrupt everything and show immediately
-    if (bannerCur && bannerCur.kind !== 'mega') bannerQueue.unshift(bannerCur);
+  if (kind === 'mega' || kind === 'happy') {   // big gifts / happy hour interrupt everything and show immediately
+    if (bannerCur && bannerCur.kind !== 'mega' && bannerCur.kind !== 'happy') bannerQueue.unshift(bannerCur);
     bannerQueue.unshift(it); clearTimeout(bannerTimer); nextBanner(); return;
   }
   bannerQueue.push(it); if (bannerQueue.length > 4) bannerQueue.length = 4;
@@ -507,7 +555,7 @@ function nextBanner() {
   bannerBusy = true;
   $('bTitle').textContent = it.title; $('bSub').textContent = it.sub;
   b.className = 'hidden'; void b.offsetWidth; b.className = it.kind;
-  bannerTimer = setTimeout(nextBanner, it.kind === 'mega' ? 3600 : 2600);
+  bannerTimer = setTimeout(nextBanner, it.kind === 'mega' || it.kind === 'happy' ? 3600 : 2600);
 }
 let bonusTimer = null;
 function timerBonus(text) { const el = $('timerBonus'); el.textContent = text; el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
@@ -566,6 +614,7 @@ function sfx(k) {
   if (k === 'boom') tone(90, .5, 'sine', .2, .5);
   if (k === 'follow') { tone(660, .12, 'sine', .1); setTimeout(() => tone(880, .2, 'sine', .1), 110); }
   if (k === 'share') { tone(500, .1, 'triangle', .1, 1.8); setTimeout(() => tone(900, .2, 'triangle', .1), 120); }
+  if (k === 'happy') { [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .22, 'square', .07), i * 120)); }
   if (k === 'mega') { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, .35, 'triangle', .13), i * 110)); }
 }
 
@@ -595,6 +644,7 @@ const SIM = {
   likes: () => handle({ type: 'like', ...bot(), count: 500 }),
   galaxy: () => handle({ type: 'gift', ...bot(), giftName: 'Galaxy', count: 1, coins: 1000 }),
   follow: () => handle({ type: 'follow', ...bot() }),
+  happy: () => startHappy([1, 2, 3, 4][Math.floor(Math.random() * 4)]),
   share: () => handle({ type: 'share', ...bot() }),
   quiz: () => { if (!quiz.active) startQuiz(); },
   answers: () => { if (!quiz.active) startQuiz(); for (let i = 0; i < 14; i++) setTimeout(() => quiz.active && handle({ type: 'chat', ...bot(), text: Math.random() < .6 ? 'abc'[quiz.q.c] : 'abc'[Math.floor(Math.random() * 3)] }), i * 400); },
@@ -630,7 +680,7 @@ function save() {
     localStorage.setItem('wissenscity', JSON.stringify({
       players: [...state.players.values()].map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes })),
       coins: state.coins, likes: state.likes, coinGoalIdx: state.coinGoalIdx, likeGoalIdx: state.likeGoalIdx,
-      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, savedAt: Date.now(),
+      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, happyUntil: state.happyUntil, savedAt: Date.now(),
     }));
   } catch { /* storage not available */ }
 }
@@ -638,7 +688,7 @@ function load() {
   try {
     const s = JSON.parse(localStorage.getItem('wissenscity') || 'null');
     if (!s || Date.now() - s.savedAt > 6 * 3600e3 || s.roundEnd < Date.now()) return;
-    Object.assign(state, { coins: s.coins, likes: s.likes, coinGoalIdx: s.coinGoalIdx, likeGoalIdx: s.likeGoalIdx, coinTarget: s.coinTarget, likeTarget: s.likeTarget, coinBase: s.coinBase || 0, likeBase: s.likeBase || 0, roundEnd: s.roundEnd, lastGifts: s.lastGifts || [] });
+    Object.assign(state, { coins: s.coins, likes: s.likes, coinGoalIdx: s.coinGoalIdx, likeGoalIdx: s.likeGoalIdx, coinTarget: s.coinTarget, likeTarget: s.likeTarget, coinBase: s.coinBase || 0, likeBase: s.likeBase || 0, roundEnd: s.roundEnd, lastGifts: s.lastGifts || [], happyUntil: s.happyUntil || 0 });
     for (const p of s.players) {
       const pl = { id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes || 0, level: -1, plot: null };
       state.players.set(pl.id, pl); const plot = freePlot(); if (plot) { pl.plot = plot; plot.owner = pl; placeHouse(pl, levelFor(pl.bp), false); }
@@ -670,6 +720,7 @@ function loop(t) {
   const rest = Math.max(0, state.roundEnd - Date.now());
   $('timer').textContent = `${Math.floor(rest / 60000)}:${String(Math.floor(rest / 1000) % 60).padStart(2, '0')}`;
   if (rest <= 0 && !newCity.pending) { newCity.pending = true; newCity(); setTimeout(() => newCity.pending = false, 4000); }
+  updateHappy(t);
   if (dirty && t - lastHud > 250) { renderHUD(); lastHud = t; }
   warm.intensity = 1.1 + Math.sin(t / 900) * .1;
   updateCamera(t, dt);
