@@ -37,7 +37,7 @@
   "likesPerBuildPoint": 50,
   "levels": {
     "pointsPerLevel": 100,
-    "bonusEveryLevels": 10,
+    "bonusEveryLevels": 1,
     "bonusSecondsPerLevel": 1
   },
   "bigGifts": {

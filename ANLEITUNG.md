@@ -6,7 +6,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 |---|---|
 | 💬 schreibt **„Haus“** (oder „mitmachen“, „join“) | bekommt ein Grundstück mit seinem Namen (Baustelle) |
 | 🌹 schickt **Geschenke** | 1 Coin = 1 Baupunkt. **Alle 100 Baupunkte = 1 Level** (Level 10 = 1.000, Level 20 = 2.000 …, ohne Obergrenze). Das Haus wird mit jedem Level schöner: Zelt → Hütte → Villa → Große Villa mit Garten → Hochhaus (jedes Level ein Stockwerk mehr, Antenne, Hubschrauberlandeplatz) → **Gold-Turm** (ab 20) → **Löwen-Turm** (ab 30) → **Diamant-Turm** (ab 40) → **Weltwunder** (ab 50). Über jedem Haus: Name, Level und Fortschrittsbalken |
-| 🏆 erreicht **Level 10, 20, 30 …** | **+10 / +20 / +30 … Sekunden** für die ganze Stadt, mit Einblendung |
+| 🏆 erreicht ein **neues Level** | **Level × 1 Sekunde** für die ganze Stadt (Level 9 = +9 Sek., Level 10 = +10 Sek., Level 20 = +20 Sek. …); bei Level 10, 20, 30 … große Einblendung |
 | 🧠 antwortet beim **Quiz** mit **A, B oder C** | jede Person kann **einmal** antworten (die erste Antwort zählt); richtig = **+10 Baupunkte** (wie 10 Rosen), die Namen der Richtigen werden eingeblendet. **Timer:** jede richtige Antwort +0,2 Sek., jede falsche −0,5 Sek. (nie unter 30 Sek. Restzeit) |
 | ❤️ schickt **Likes** | füllt das Like-Ziel (Löwen-Statue …) + alle 50 Likes 1 Baupunkt |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
@@ -17,7 +17,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 👑 **Top 3 ändert sich** | freundliche Ansage, z. B. „👑 **Lisa** erobert den Thron! **Tom** wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄“ |
 | 🎉 **Happy Hour** | kommt **alle 2 Minuten** (2 Minuten Pause nach jeder Happy Hour) und dauert zufällig 1, 2, 3 oder 4 Minuten: **alle Baupunkte x2** (Geschenke, Quiz, Teilen), Party-Lichter und Countdown |
 
-Alle 70 Sekunden kommt eine Quizfrage. Nach 20 Minuten startet eine **neue Stadt** – Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
+Alle 70 Sekunden kommt eine Quizfrage. Wenn die Zeit abläuft, werden die Top 3 gefeiert und danach **alles gelöscht** (Häuser, Ziele, Bauwerke) – eine **neue Stadt** beginnt. Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
 
 ---
 
@@ -55,7 +55,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
-| `levels` | Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus bei jedem 10er-Level (`bonusEveryLevels`, `bonusSecondsPerLevel`) |
+| `levels` | Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus pro Level (`bonusSecondsPerLevel`, Standard 1 → Level × 1 Sek.) |
 | `happyHour` | Faktor (`multiplier`), wie oft (`randomEveryMinutes`), wie lange (`randomDurationMinutes`), ab wie vielen Coins sie ausgelöst wird (`triggerCoins`) und wie lange dann (`triggerMinutes`) |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 

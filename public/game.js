@@ -13,7 +13,7 @@ const C = {
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
   quiz: Object.assign({ everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
-  levels: Object.assign({ pointsPerLevel: 100, bonusEveryLevels: 10, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
+  levels: Object.assign({ pointsPerLevel: 100, bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
@@ -350,14 +350,16 @@ function addBP(pl, amount) {
   pl.bp += amount;
   const lv = levelFor(pl.bp), before = Math.max(0, pl.level);
   if (lv !== pl.level) {
-    // milestone bonus: Level 10 = +10 s, Level 20 = +20 s, Level 30 = +30 s … (for the whole city)
+    // level bonus for the whole city: reaching level N adds N seconds (Level 9 = +9 s, Level 10 = +10 s …)
     let bonus = 0; const every = C.levels.bonusEveryLevels;
     for (let m = Math.floor(before / every) + 1; m <= Math.floor(lv / every); m++) bonus += m * every * C.levels.bonusSecondsPerLevel;
     placeHouse(pl, lv, { bonus });
     if (bonus > 0) {
       state.roundEnd += bonus * 1000;
       timerBonus(`+${bonus} Sek. · ${pl.nick} Lv ${lv}`);
-      shout(`🏆 <b>${esc(pl.nick)}</b> erreicht Level ${Math.floor(lv / every) * every}! <b>+${bonus} Sekunden</b> für die ganze Stadt ⏳`, 'gold', pl.avatar);
+      // big shout-out only for the round numbers (10, 20, 30 …) so it doesn't get spammy
+      if (Math.floor(lv / 10) > Math.floor(before / 10))
+        shout(`🏆 <b>${esc(pl.nick)}</b> erreicht Level ${lv}! <b>+${bonus} Sekunden</b> für die ganze Stadt ⏳`, 'gold', pl.avatar);
     }
   } else refreshLabel(pl);
   dirty = true;
@@ -487,6 +489,7 @@ function startHappy(minutes, byNick = '', delay = 0) {
   state.happyUntil = Math.max(state.happyUntil, Date.now() + minutes * 60000);
   const total = Math.round((state.happyUntil - Date.now()) / 60000);
   setTimeout(() => {
+    if (!happyOn()) return;                       // city was reset in the meantime
     banner('🎉 HAPPY HOUR!', `${total} Minute${total === 1 ? '' : 'n'} · alle Baupunkte x${C.happy.multiplier}${byNick ? ' · dank ' + byNick : ''}`, wasOn ? '' : 'happy');
     if (byNick) shout(`🎉 <b>${esc(byNick)}</b> startet ${minutes} Min. Happy Hour – alles x${C.happy.multiplier}!`, 'pink');
     fireworks(plazaCenter, 6); sfx('happy');
@@ -551,6 +554,7 @@ function checkGoals() {
   }
 }
 const communitySlots = [[-9, -9], [9, 9], [9, -9], [-9, 9], [0, 0]];
+const communityGroups = [];
 function buildCommunity(kind, name) {
   const i = state.built.length % communitySlots.length;
   const [dx, dz] = communitySlots[i];
@@ -569,7 +573,7 @@ function buildCommunity(kind, name) {
     const head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 14), body.material); head.position.set(0, 5.6, .9); g.add(head);
   }
   const lb = label(name, 8); lb.position.y = 10; g.add(lb);
-  scene.add(g); state.built.push({ kind, name });
+  scene.add(g); state.built.push({ kind, name }); communityGroups.push(g);
   g.scale.setScalar(.01); animate(1200, x => g.scale.setScalar(Math.max(.01, easeOutBack(x))));
   focusOn(g.position, 8); fireworks(g.position, 8);
   banner(kind === 'coin' ? 'COIN-ZIEL!' : 'LIKE-ZIEL!', `${name} wurde gebaut! 🎉`);
@@ -701,9 +705,16 @@ function newCity() {
   banner('NEUE STADT!', top.length ? `🏆 ${top.map(p => p.nick).join(' · ')}` : 'Bau mit!');
   fireworks(plazaCenter, 10);
   setTimeout(() => {
+    // complete fresh start: houses, players, goals, community buildings, Happy Hour, lists
     for (const pl of state.players.values()) removeHouse(pl);
     state.players.clear(); state.lastGifts = []; lastTop = [];
+    for (const g of communityGroups) scene.remove(g); communityGroups.length = 0; state.built = [];
+    Object.assign(state, { coins: 0, likes: 0, coinGoalIdx: 0, likeGoalIdx: 0, coinBase: 0, likeBase: 0,
+      coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0 });
+    nextRandomHappy = Date.now() + randMinutes(C.happy.randomEveryMinutes);
     state.roundEnd = Date.now() + C.roundMinutes * 60000; dirty = true;
+    save();
+    shout('🏗️ Eine neue Stadt beginnt! Schreib <b>„Haus“</b> und bau mit! 🦁', 'teal');
   }, 2500);
 }
 
