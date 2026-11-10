@@ -1,0 +1,18 @@
+{
+  "name": "wissens-city-live",
+  "version": "1.0.0",
+  "description": "Interaktives TikTok-LIVE-Spiel: Zuschauer bauen mit Geschenken und Quiz-Antworten eine Stadt.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node server.js --demo"
+  },
+  "dependencies": {
+    "three": "0.170.0",
+    "tiktok-live-connector": "2.5.0",
+    "ws": "8.18.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

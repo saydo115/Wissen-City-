@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wissens-City LIVE</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
+</head>
+<body>
+<div id="stage">
+  <canvas id="city"></canvas>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud">
+    <div class="row head">
+      <div class="logo">🦁</div>
+      <div class="title">
+        <div class="name" id="cityName">Wissens-City</div>
+        <div class="sub"><span class="dot"></span>LIVE · Bau mit uns die Stadt</div>
+      </div>
+      <div class="pill"><b id="statBuilt">0</b><span>/ <i id="statPlots">0</i> bebaut</span></div>
+      <div class="pill"><b id="statPlayers">0</b><span>Spieler</span></div>
+    </div>
+
+    <div class="row goals">
+      <div class="goal coin">
+        <div class="gicon">🪙</div>
+        <div class="gbody">
+          <div class="gtitle">COIN-ZIEL</div>
+          <div class="gname" id="coinGoalName">Stadion</div>
+          <div class="bar"><div class="fill" id="coinFill"></div><span id="coinText">0 / 5.000</span></div>
+        </div>
+      </div>
+      <div class="goal like">
+        <div class="gicon">❤️</div>
+        <div class="gbody">
+          <div class="gtitle">LIKE-ZIEL</div>
+          <div class="gname" id="likeGoalName">Löwen-Statue</div>
+          <div class="bar"><div class="fill" id="likeFill"></div><span id="likeText">0 / 10.000</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mid">
+      <div class="panel top3">
+        <div class="ptitle">🏆 Top 3 Häuser</div>
+        <div id="top3"></div>
+      </div>
+      <div class="panel timer">
+        <div class="tbonus" id="timerBonus"></div>
+        <div class="ttitle">⏳ NEUE STADT IN</div>
+        <div class="tval" id="timer">20:00</div>
+        <div class="tsub" id="timerSub">50 Coins = +1 Sek.</div>
+      </div>
+      <div class="panel gifts">
+        <div class="ptitle">🎁 Letzte Geschenke</div>
+        <div id="lastGifts"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== QUIZ ===== -->
+  <div id="quiz" class="hidden">
+    <img id="quizLion" src="assets/lionQ.png" alt="">
+    <div class="qcard">
+      <div class="qhead"><span>🧠 WISSENS-QUIZ</span><span id="qTimer">20</span></div>
+      <div class="qtext" id="qText">Frage</div>
+      <div class="qopts">
+        <div class="qopt" data-i="0"><b>A</b><span id="qA"></span><em id="qCA">0</em></div>
+        <div class="qopt" data-i="1"><b>B</b><span id="qB"></span><em id="qCB">0</em></div>
+        <div class="qopt" data-i="2"><b>C</b><span id="qC"></span><em id="qCC">0</em></div>
+      </div>
+      <div class="qbar"><div id="qFill"></div></div>
+      <div class="qhint" id="qHint">Schreib <b>A</b>, <b>B</b> oder <b>C</b> in den Chat! Richtig = Baupunkte 🏗️</div>
+    </div>
+  </div>
+
+  <!-- ===== BANNER / TOASTS ===== -->
+  <div id="banner" class="hidden"><div class="btitle" id="bTitle">LEVEL 5!</div><div class="bsub" id="bSub">Große Villa</div></div>
+  <div id="toasts"></div>
+  <div id="howto">🌹 Rose = Baupunkt &nbsp;·&nbsp; 💬 „Haus“ = mitmachen &nbsp;·&nbsp; 🧠 Quiz: A / B / C</div>
+  <div id="conn" class="hidden"></div>
+
+  <!-- ===== TEST PANEL (nur mit ?demo=1 oder Taste D) ===== -->
+  <div id="sim" class="hidden">
+    <div class="simtitle">🧪 Testmodus <small>(Taste D)</small></div>
+    <button data-sim="join">👋 Zuschauer: „Haus“</button>
+    <button data-sim="rose">🌹 Rose ×1</button>
+    <button data-sim="rose10">🌹 Rose ×10</button>
+    <button data-sim="big">🦁 Großes Geschenk (99)</button>
+    <button data-sim="huge">🚀 Riesen-Geschenk (500)</button>
+    <button data-sim="likes">❤️ +500 Likes</button>
+    <button data-sim="quiz">🧠 Quiz jetzt starten</button>
+    <button data-sim="answers">💬 Quiz-Antworten simulieren</button>
+    <button data-sim="auto">🤖 Auto-Demo an/aus</button>
+    <button data-sim="time">⏩ Timer −1 Minute</button>
+    <button data-sim="reset">🔄 Neue Stadt jetzt</button>
+  </div>
+</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>
