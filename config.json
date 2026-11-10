@@ -29,7 +29,10 @@
     "everySeconds": 70,
     "answerSeconds": 20,
     "pointsCorrect": 10,
-    "pointsFirst": 0
+    "pointsFirst": 0,
+    "timeCorrectSeconds": 0.2,
+    "timeWrongSeconds": 0.5,
+    "minSecondsLeft": 30
   },
   "likesPerBuildPoint": 50,
   "bigGifts": {

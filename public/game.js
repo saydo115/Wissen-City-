@@ -11,7 +11,7 @@ const C = {
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
-  quiz: CFG.quiz || { everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0 },
+  quiz: Object.assign({ everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
@@ -550,6 +550,18 @@ function endQuiz() {
   $('qHint').innerHTML = right.length
     ? `✅ Richtig (<b>${'ABC'[quiz.q.c]}</b>): <b>${names}</b> – je +${pts} Baupunkte 🌹${firstNick ? ` · ⚡ Schnellste/r: <b>${esc(firstNick)}</b> +${C.quiz.pointsFirst}` : ''}`
     : `Richtig war <b>${'ABC'[quiz.q.c]}</b> – diesmal hatte es niemand! 😮`;
+  // round timer: every correct answer +0.2 s, every wrong answer −0.5 s (never below minSecondsLeft)
+  const wrongN = quiz.answers.size - right.length;
+  const delta = right.length * C.quiz.timeCorrectSeconds - wrongN * C.quiz.timeWrongSeconds;
+  if (quiz.answers.size) {
+    const minEnd = Date.now() + C.quiz.minSecondsLeft * 1000;
+    const before = state.roundEnd;
+    state.roundEnd = delta < 0 ? Math.max(Math.min(before, minEnd), before + delta * 1000) : before + delta * 1000;
+    const real = (state.roundEnd - before) / 1000;
+    const f = x => (Math.round(Math.abs(x) * 10) / 10).toLocaleString('de-DE');
+    timerBonus(`${real >= 0 ? '+' : '−'}${f(real)} Sek. · Quiz (✅ ${right.length} · ❌ ${wrongN})`, real < 0);
+    $('qHint').innerHTML += `<br>⏳ ✅ ${right.length}× +${f(C.quiz.timeCorrectSeconds)} s · ❌ ${wrongN}× −${f(C.quiz.timeWrongSeconds)} s = <b>${real >= 0 ? '+' : '−'}${f(real)} Sek.</b>`;
+  }
   if (right.length) shout(`🧠 ${right.length === 1 ? '<b>' + names + '</b> hatte' : '<b>' + right.length + '</b> hatten'} die richtige Antwort – je +${pts} Baupunkte! 🎉`, 'teal');
   sfx(right.length ? 'right' : 'wrong');
   setTimeout(() => { $('quiz').classList.add('hidden'); $('howto').classList.remove('hidden'); }, 6000);
@@ -605,7 +617,7 @@ function nextBanner() {
   bannerTimer = setTimeout(nextBanner, it.kind === 'mega' || it.kind === 'happy' ? 3600 : 2600);
 }
 let bonusTimer = null;
-function timerBonus(text) { const el = $('timerBonus'); el.textContent = text; el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
+function timerBonus(text, bad = false) { const el = $('timerBonus'); el.textContent = text; el.classList.toggle('bad', bad); el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
 
 // =====================================================================================
 // Round reset

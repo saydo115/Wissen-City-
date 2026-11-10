@@ -6,7 +6,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 |---|---|
 | 💬 schreibt **„Haus“** (oder „mitmachen“, „join“) | bekommt ein Grundstück mit seinem Namen (Baustelle) |
 | 🌹 schickt **Geschenke** | 1 Coin = 1 Baupunkt → das Haus wächst (Zelt → Hütte → … → Villa → Hochhaus → **Löwen-Turm**) |
-| 🧠 antwortet beim **Quiz** mit **A, B oder C** | jede Person kann **einmal** antworten (die erste Antwort zählt); richtig = **+10 Baupunkte** (wie 10 Rosen), die Namen der Richtigen werden eingeblendet |
+| 🧠 antwortet beim **Quiz** mit **A, B oder C** | jede Person kann **einmal** antworten (die erste Antwort zählt); richtig = **+10 Baupunkte** (wie 10 Rosen), die Namen der Richtigen werden eingeblendet. **Timer:** jede richtige Antwort +0,2 Sek., jede falsche −0,5 Sek. (nie unter 30 Sek. Restzeit) |
 | ❤️ schickt **Likes** | füllt das Like-Ziel (Löwen-Statue …) + alle 50 Likes 1 Baupunkt |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
 | ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |
@@ -50,7 +50,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `roundMinutes` | Länge einer Runde bis zur neuen Stadt |
 | `timerBonus` | Zeitverlängerung durch Coins an/aus (`"enabled": false`) |
 | `coinGoal` / `likeGoal` | Namen und Größe der Gemeinschafts-Ziele |
-| `quiz` | Abstand der Fragen, Antwortzeit, Punkte |
+| `quiz` | Abstand der Fragen, Antwortzeit, Punkte, Zeit pro richtiger/falscher Antwort (`timeCorrectSeconds`, `timeWrongSeconds`), Mindest-Restzeit (`minSecondsLeft`) |
 | `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
