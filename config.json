@@ -46,8 +46,8 @@
   "happyHour": {
     "multiplier": 2,
     "randomEveryMinutes": [
-      8,
-      15
+      2,
+      3
     ],
     "randomDurationMinutes": [
       1,

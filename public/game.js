@@ -16,7 +16,7 @@ const C = {
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
-  happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [8, 15], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
+  happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [2, 3], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
   joinWords: (CFG.joinWords || ['haus', 'join', 'mitmachen']).map(s => s.toLowerCase()),
 };
 const $ = id => document.getElementById(id);
@@ -287,6 +287,50 @@ function addBP(pl, amount) {
   const lv = levelFor(pl.bp);
   if (lv !== pl.level) placeHouse(pl, lv, true);
   dirty = true;
+  scheduleRanking();
+}
+
+// =====================================================================================
+// Top-3 announcements (friendly shout-outs when someone climbs or drops)
+// =====================================================================================
+const RANK_TEXT = {
+  0: [
+    '👑 <b>{new}</b> erobert den Thron! <b>{old}</b> wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄',
+    '👑 Neue Nummer 1 der Stadt: <b>{new}</b>! <b>{old}</b>, dein Thron wartet schon auf dich 😉',
+    '👑 <b>{new}</b> sitzt jetzt ganz oben! <b>{old}</b> macht höflich Platz – noch ist nichts entschieden 💪',
+    '👑 Thronwechsel! <b>{new}</b> regiert jetzt die Stadt – <b>{old}</b>, das war ein starkes Duell 👏',
+  ],
+  1: [
+    '🥈 <b>{new}</b> schiebt sich auf Platz 2! <b>{old}</b> rutscht kurz eins runter – weiter geht’s! 🙌',
+    '🥈 Platz 2 für <b>{new}</b>! <b>{old}</b>, den holst du dir bestimmt zurück 😄',
+    '🥈 <b>{new}</b> überholt <b>{old}</b> und ist jetzt Zweite/r – Respekt! ✨',
+  ],
+  2: [
+    '🥉 <b>{new}</b> ist neu in den Top 3! <b>{old}</b>, bleib dran – das war knapp! 🍀',
+    '🥉 Willkommen in den Top 3, <b>{new}</b>! <b>{old}</b> macht kurz Pause auf Platz 4 😉',
+    '🥉 <b>{new}</b> klettert aufs Treppchen! <b>{old}</b>, gleich zurückholen? 💪',
+  ],
+};
+let lastTop = [], rankTimer = null, lastRankShout = 0;
+const top3Ids = () => [...state.players.values()].filter(p => p.bp > 0).sort((a, b) => b.bp - a.bp).slice(0, 3).map(p => p.id);
+function scheduleRanking() { clearTimeout(rankTimer); rankTimer = setTimeout(checkRanking, 1500); }  // wait until combos are done
+function checkRanking() {
+  const now = top3Ids();
+  if (Date.now() - lastRankShout < 5000) { rankTimer = setTimeout(checkRanking, 5000 - (Date.now() - lastRankShout)); return; }
+  for (let r = 0; r < 3; r++) {
+    const neu = now[r], old = lastTop[r];
+    if (!neu || !old || neu === old) continue;
+    const pNew = state.players.get(neu), pOld = state.players.get(old);
+    if (!pNew || !pOld) continue;
+    const pool = RANK_TEXT[r];
+    const text = pool[Math.floor(Math.random() * pool.length)].replace('{new}', esc(pNew.nick)).replace('{old}', esc(pOld.nick));
+    shout(text, r === 0 ? 'gold' : r === 1 ? 'teal' : 'pink', pNew.avatar);
+    if (pNew.plot) burst(new THREE.Vector3(pNew.plot.x, HOUSE_TOP[Math.max(0, pNew.level)] + 3, pNew.plot.z), r === 0 ? 0xffd23f : 0xc0e8ff, r === 0 ? 70 : 35);
+    sfx(r === 0 ? 'throne' : 'rank');
+    lastRankShout = Date.now();
+    break;                                        // only the most important change at a time
+  }
+  lastTop = now;
 }
 
 // =====================================================================================
@@ -569,7 +613,7 @@ function newCity() {
   fireworks(plazaCenter, 10);
   setTimeout(() => {
     for (const pl of state.players.values()) removeHouse(pl);
-    state.players.clear(); state.lastGifts = [];
+    state.players.clear(); state.lastGifts = []; lastTop = [];
     state.roundEnd = Date.now() + C.roundMinutes * 60000; dirty = true;
   }, 2500);
 }
@@ -614,6 +658,8 @@ function sfx(k) {
   if (k === 'boom') tone(90, .5, 'sine', .2, .5);
   if (k === 'follow') { tone(660, .12, 'sine', .1); setTimeout(() => tone(880, .2, 'sine', .1), 110); }
   if (k === 'share') { tone(500, .1, 'triangle', .1, 1.8); setTimeout(() => tone(900, .2, 'triangle', .1), 120); }
+  if (k === 'throne') { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .25, 'triangle', .11), i * 90)); }
+  if (k === 'rank') { tone(700, .12, 'triangle', .09); setTimeout(() => tone(940, .18, 'triangle', .09), 100); }
   if (k === 'happy') { [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .22, 'square', .07), i * 120)); }
   if (k === 'mega') { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, .35, 'triangle', .13), i * 110)); }
 }
@@ -728,4 +774,4 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__game = { state, SIM, handle, nextQuestion };
+window.__game = { state, SIM, handle, nextQuestion, checkRanking };
