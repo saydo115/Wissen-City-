@@ -62,6 +62,7 @@
   },
   "bigGifts": {
     "fireworksFrom": 100,
+    "rocketFrom": 400,
     "megaFrom": 1000
   },
   "follow": {

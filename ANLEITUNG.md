@@ -16,8 +16,9 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 🔁 **teilt** den LIVE | „🔁 **Name** hat geteilt! +10 Baupunkte“ (max. 3× pro Person und Runde) |
 | 🎁 Geschenk ab **2 Coins** (alles außer Rose) | Einblendung mit Namen + **gesprochenes Dankeschön** („Danke, Lisa!“ … bei großen Geschenken „Unglaublich! Lisa, tausend Dank für Galaxy!“) |
 | 🌹 einzelne **Rosen** (1 Coin) | zählen als Baupunkte, werden aber **nicht** eingeblendet oder angesagt (sonst wird es zu voll) |
-| 🎆 Geschenk ab **100 Coins** | Feuerwerk über seinem Haus + Dank-Einblendung mit Namen |
-| 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ **+ startet 4 Minuten Happy Hour** |
+| 🎆 Geschenk ab **100 Coins** | kurzes gesprochenes „Danke, **Name**!“ + Feuerwerk über seinem Haus |
+| 🚀 Geschenk ab **400 Coins** | statt Feuerwerk startet eine **Rakete** vom Haus, das Haus leuchtet auf, oben explodiert sie bunt (ab 1.000 Coins drei Raketen). Kein extra Banner – TikTok zeigt die Geschenk-Animation ja selbst |
+| 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | drei Raketen **+ startet 4 Minuten Happy Hour** |
 | 👑 **Top 3 ändert sich** | freundliche Ansage, z. B. „👑 **Lisa** erobert den Thron! **Tom** wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄“ |
 | 🎉 **Happy Hour** | kommt **alle 2 Minuten** (2 Minuten Pause nach jeder Happy Hour) und dauert zufällig 1, 2, 3 oder 4 Minuten: **alle Baupunkte x2** (Geschenke, Quiz, Teilen), Party-Lichter und Countdown |
 
@@ -70,7 +71,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `coinGoal` / `likeGoal` | Namen und Größe der Gemeinschafts-Ziele (Like-Ziel: `target` = alle wie viele Likes, Standard 5.000) |
 | `generator` | Zeit-Generator: `everyLikes` (20.000), `intervalSeconds` (10), `bonusSeconds` (2) |
 | `quiz` | Abstand der Fragen (`everySeconds`, 40), Antwortzeit (`answerSeconds`, 5), Puffer für späte Antworten (`graceSeconds`, 2), alle wie viele Fragen es schwerer wird (`harderEvery`, 10), Punkte, Zeit pro richtiger/falscher Antwort (`timeCorrectSeconds`, `timeWrongSeconds`), Mindest-Restzeit (`minSecondsLeft`) |
-| `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
+| `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`, 100), eine Rakete (`rocketFrom`, 400) bzw. drei Raketen (`megaFrom`, 1.000) kommen |
 | `welcome` | Begrüßung neuer Zuschauer: an/aus (`enabled`), nur Einblendung ohne Stimme (`speak: false`), Sammelzeit (`collectSeconds`), max. Namen pro Ansage (`maxNames`) |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
