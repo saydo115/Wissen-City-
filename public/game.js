@@ -10,12 +10,13 @@ const C = {
   roundMinutes: CFG.roundMinutes || 20,
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
-  likeGoal: CFG.likeGoal || { names: ['Löwen-Statue'], target: 10000 },
-  quiz: Object.assign({ everySeconds: 70, answerSeconds: 20, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
+  likeGoal: CFG.likeGoal || { names: ['Riesenrad', 'Bushaltestelle', 'Lampen', 'Feuerwerk'], target: 5000 },
+  generator: Object.assign({ everyLikes: 20000, intervalSeconds: 10, bonusSeconds: 2 }, CFG.generator || {}),
+  quiz: Object.assign({ everySeconds: 40, answerSeconds: 5, graceSeconds: 2, harderEvery: 10, firstAfterSeconds: 15, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
   mentions: Object.assign({ minCoinsPerGift: 2 }, CFG.mentions || {}),
   voice: Object.assign({ enabled: true, minCoinsPerGift: 2, rate: 1.05, pitch: 1, volume: 1, preferVoices: ['Natural', 'Online', 'Google', 'Katja', 'Conrad', 'Hedda', 'Stefan'] }, CFG.voice || {}),
-  levels: Object.assign({ pointsPerLevel: 100, bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
+  levels: Object.assign({ pointsPerLevel: 100, firstSteps: [10, 30, 60, 100], bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
@@ -40,13 +41,21 @@ addEventListener('resize', fit); fit();
 // =====================================================================================
 // Game rules
 // =====================================================================================
-// Level = every 100 build points (Level 10 = 1.000, Level 20 = 2.000 …), no upper limit
+// Every player starts right away with Level 1 (small farmhouse).
+// The first levels come quickly (firstSteps = build points for Level 2, 3, 4, 5 …),
+// after that every `pointsPerLevel` build points = 1 level, no upper limit.
 const PPL = () => C.levels.pointsPerLevel;
-const levelFor = bp => Math.floor(bp / PPL());
-const levelProgress = bp => (bp % PPL()) / PPL();
+const STEPS = () => C.levels.firstSteps || [];
+function levelStart(l) {                    // build points needed for level l
+  const s = STEPS();
+  if (l <= 1) return 0;
+  if (l - 2 < s.length) return s[l - 2];
+  return (s.length ? s[s.length - 1] : 0) + (l - 1 - s.length) * PPL();
+}
+function levelFor(bp) { let l = 1; while (bp >= levelStart(l + 1)) l++; return l; }
+const levelProgress = bp => { const l = levelFor(bp), a = levelStart(l), b = levelStart(l + 1); return (bp - a) / (b - a); };
 function levelName(l) {
-  if (l <= 0) return 'Baustelle';
-  const small = ['', 'Zelt', 'Hütte', 'Häuschen', 'Stadthaus', 'Villa'];
+  const small = ['', 'Bauernhaus', 'Bauernhof', 'Landhaus', 'Stadthaus', 'Villa'];
   if (l <= 5) return small[l];
   if (l < 10) return 'Große Villa';
   if (l < 20) return 'Hochhaus';
@@ -76,26 +85,26 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b1024);
-scene.fog = new THREE.Fog(0x0b1024, 90, 210);
-const camera = new THREE.PerspectiveCamera(42, 1080 / 1920, 1, 600);
+scene.fog = new THREE.Fog(0x0b1024, 150, 360);
+const camera = new THREE.PerspectiveCamera(42, 1080 / 1920, 1, 900);
 
 scene.add(new THREE.HemisphereLight(0x9fb2ff, 0x2a3a24, 1.0));
 const moon = new THREE.DirectionalLight(0xc8d4ff, 1.5);
-moon.position.set(-60, 90, 40); moon.castShadow = true;
+moon.position.set(-90, 135, 60); moon.castShadow = true;
 moon.shadow.mapSize.set(2048, 2048);
-Object.assign(moon.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 10, far: 260 });
+Object.assign(moon.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 10, far: 380 });
 scene.add(moon);
 const warm = new THREE.PointLight(0xffb060, 1.2, 140, 1.2); warm.position.set(0, 25, 0); scene.add(warm);
 const partyLights = [0, 1, 2].map(() => { const L = new THREE.PointLight(0xff00ff, 0, 120, 1.1); scene.add(L); return L; });
 const nightBg = new THREE.Color(0x0b1024), happyBg = new THREE.Color();
 
 // layout: blocks of 2x2 plots separated by roads
-const BX = 6, BZ = 8;               // blocks
+const BX = 10, BZ = 10;             // blocks (10 x 10 minus the plaza = 96 blocks = 384 plots)
 const PLOT = 7, ROAD = 6;           // sizes
 const BLOCK = PLOT * 2;
 const W = BX * BLOCK + (BX + 1) * ROAD, D = BZ * BLOCK + (BZ + 1) * ROAD;
 const plots = [];                   // {x, z, owner, group}
-const PLAZA = { bx: [2, 3], bz: [3, 4] };   // central blocks reserved for community buildings
+const PLAZA = { bx: [4, 5], bz: [4, 5] };   // central blocks reserved for community buildings
 for (let bz = 0; bz < BZ; bz++) for (let bx = 0; bx < BX; bx++) {
   if (PLAZA.bx.includes(bx) && PLAZA.bz.includes(bz)) continue;
   const x0 = -W / 2 + ROAD + bx * (BLOCK + ROAD), z0 = -D / 2 + ROAD + bz * (BLOCK + ROAD);
@@ -106,26 +115,37 @@ plots.sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
 $('statPlots').textContent = plots.length;
 
 // ground, roads, plaza
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 80, D + 80), new THREE.MeshStandardMaterial({ color: 0x24382a, roughness: 1 }));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 160, D + 160), new THREE.MeshStandardMaterial({ color: 0x24382a, roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const roadMat = new THREE.MeshStandardMaterial({ color: 0x23262f, roughness: .95 });
 const lineMat = new THREE.MeshBasicMaterial({ color: 0x9aa0aa });
+const dashes = [];
 for (let bx = 0; bx <= BX; bx++) {
   const x = -W / 2 + ROAD / 2 + bx * (BLOCK + ROAD);
   const r = new THREE.Mesh(new THREE.PlaneGeometry(ROAD, D), roadMat); r.rotation.x = -Math.PI / 2; r.position.set(x, .02, 0); r.receiveShadow = true; scene.add(r);
-  for (let z = -D / 2 + 2; z < D / 2; z += 5) { const l = new THREE.Mesh(new THREE.PlaneGeometry(.25, 2), lineMat); l.rotation.x = -Math.PI / 2; l.position.set(x, .04, z); scene.add(l); }
+  for (let z = -D / 2 + 2; z < D / 2; z += 5) dashes.push([x, .04, z, 0]);
 }
 for (let bz = 0; bz <= BZ; bz++) {
   const z = -D / 2 + ROAD / 2 + bz * (BLOCK + ROAD);
   const r = new THREE.Mesh(new THREE.PlaneGeometry(W, ROAD), roadMat); r.rotation.x = -Math.PI / 2; r.position.set(0, .03, z); r.receiveShadow = true; scene.add(r);
-  for (let x = -W / 2 + 2; x < W / 2; x += 5) { const l = new THREE.Mesh(new THREE.PlaneGeometry(2, .25), lineMat); l.rotation.x = -Math.PI / 2; l.position.set(x, .05, z); scene.add(l); }
+  for (let x = -W / 2 + 2; x < W / 2; x += 5) dashes.push([x, .05, z, 1]);
+}
+{
+  const dash = new THREE.InstancedMesh(new THREE.PlaneGeometry(.25, 2).rotateX(-Math.PI / 2), lineMat, dashes.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
+  dashes.forEach(([x, y, z, rot], i) => dash.setMatrixAt(i, m.compose(new THREE.Vector3(x, y, z), q.setFromAxisAngle(up, rot ? Math.PI / 2 : 0), one)));
+  scene.add(dash);
 }
 const plotMat = new THREE.MeshStandardMaterial({ color: 0x3f7a45, roughness: 1 });
-for (const p of plots) { const g = new THREE.Mesh(new THREE.BoxGeometry(PLOT - .8, .2, PLOT - .8), plotMat); g.position.set(p.x, .1, p.z); g.receiveShadow = true; scene.add(g); }
+{
+  const im = new THREE.InstancedMesh(new THREE.BoxGeometry(PLOT - .8, .2, PLOT - .8), plotMat, plots.length);
+  const m = new THREE.Matrix4(); plots.forEach((p, i) => im.setMatrixAt(i, m.makeTranslation(p.x, .1, p.z)));
+  im.receiveShadow = true; scene.add(im);
+}
 const plazaSize = 2 * BLOCK + ROAD;
 const plaza = new THREE.Mesh(new THREE.BoxGeometry(plazaSize, .3, plazaSize), new THREE.MeshStandardMaterial({ color: 0x5a5560, roughness: .8 }));
 plaza.receiveShadow = true; scene.add(plaza);
-const plazaCenter = new THREE.Vector3(-W / 2 + ROAD + 2 * (BLOCK + ROAD) + plazaSize / 2, 0, -D / 2 + ROAD + 3 * (BLOCK + ROAD) + plazaSize / 2);
+const plazaCenter = new THREE.Vector3(-W / 2 + ROAD + PLAZA.bx[0] * (BLOCK + ROAD) + plazaSize / 2, 0, -D / 2 + ROAD + PLAZA.bz[0] * (BLOCK + ROAD) + plazaSize / 2);
 plaza.position.set(plazaCenter.x, .15, plazaCenter.z);
 
 // glow sprite texture
@@ -149,9 +169,9 @@ for (let bx = 0; bx <= BX; bx++) for (let bz = 0; bz <= BZ; bz++) {
 // trees
 const treeMat = new THREE.MeshStandardMaterial({ color: 0x2f7a3a, roughness: .9 });
 const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3a22 });
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 140; i++) {
   const r = hash('tree' + i);
-  const x = (r % 1000) / 1000 * (W + 60) - (W + 60) / 2, z = ((r >> 10) % 1000) / 1000 * (D + 60) - (D + 60) / 2;
+  const x = (r % 1000) / 1000 * (W + 110) - (W + 110) / 2, z = ((r >> 10) % 1000) / 1000 * (D + 110) - (D + 110) / 2;
   if (Math.abs(x) < W / 2 + 2 && Math.abs(z) < D / 2 + 2) continue;
   const t = new THREE.Group();
   const tr = new THREE.Mesh(new THREE.CylinderGeometry(.3, .4, 2), trunkMat); tr.position.y = 1; t.add(tr);
@@ -183,22 +203,41 @@ function roof(w, d, h, color) {
   const m = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * .75, h, 4), new THREE.MeshStandardMaterial({ color, roughness: .9 }));
   m.rotation.y = Math.PI / 4; m.castShadow = true; return m;
 }
+// gable (saddle) roof: triangle w wide, h high, d deep, bottom at y = 0
+function gable(w, d, h, color) {
+  const s = new THREE.Shape(); s.moveTo(-w / 2 - .2, 0); s.lineTo(w / 2 + .2, 0); s.lineTo(0, h); s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: d + .3, bevelEnabled: false }); geo.translate(0, 0, -(d + .3) / 2);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: .9 })); m.castShadow = true; return m;
+}
 function buildHouse(level, seed) {
   const g = new THREE.Group();
   const col = PALETTE[seed % PALETTE.length], rc = ROOFS[(seed >>> 4) % ROOFS.length];
   const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
   const glowSprite = (color, size, y) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); h.scale.set(size, size, 1); return add(h, 0, y, 0); };
   const beam = (color, height, y0) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(.35, 1.2, height, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); return add(b, 0, y0 + height / 2, 0); };
-  const L = level;
+  const L = Math.max(1, level);
+  // farm pieces (Level 1–3)
+  const fence = () => {
+    const wood = 0xc89a5a;
+    for (const s of [-1, 1]) { add(box(6.2, .12, .12, wood), 0, .55, s * 3.05); add(box(6.2, .12, .12, wood), 0, .25, s * 3.05); add(box(.12, .12, 6.2, wood), s * 3.05, .55, 0); add(box(.12, .12, 6.2, wood), s * 3.05, .25, 0); }
+    for (let i = -3; i <= 3; i += 1.5) for (const s of [-1, 1]) { add(box(.18, .8, .18, wood), i, .4, s * 3.05); add(box(.18, .8, .18, wood), s * 3.05, .4, i); }
+  };
+  const farmhouse = (x, z, s = 1) => {
+    add(box(2.8 * s, 1.8 * s, 2.4 * s, 0xf3ead8, 1, 2), x, .9 * s, z);
+    add(gable(2.8 * s, 2.4 * s, 1.3 * s, 0xb23a2a), x, 1.8 * s, z);
+    add(box(.6 * s, 1.1 * s, .08, 0x6b4423), x + .5 * s, .55 * s, z + 1.22 * s);           // door
+    add(box(.35 * s, 1 * s, .35 * s, 0x8a5a44), x - .8 * s, 2.6 * s, z - .4 * s);            // chimney
+  };
+  const hay = (x, z) => { const h = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .7, 12), new THREE.MeshStandardMaterial({ color: 0xe8c45a, roughness: 1 })); h.rotation.z = Math.PI / 2; h.castShadow = true; add(h, x, .45, z); };
+  const barn = (x, z) => { add(box(2.4, 2, 2.8, 0xa8322a), x, 1, z); add(gable(2.4, 2.8, 1.2, 0x5a3a22), x, 2, z); add(box(1.1, 1.3, .06, 0xf3ead8), x, .65, z + 1.42); };
+  const tree = (x, z, s = 1) => { add(box(.3, 1.2 * s, .3, 0x5a3a22), x, .6 * s, z); const c = new THREE.Mesh(new THREE.SphereGeometry(.9 * s, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3f9a4a })); c.castShadow = true; add(c, x, 1.7 * s, z); };
   if (L <= 6) {
     switch (L) {
-      case 0:
-        add(box(4.5, .3, 4.5, 0x8a6a3a), 0, .15, 0);
-        for (const [x, z] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) add(box(.25, 2.2, .25, 0xf2c14e), x, 1.1, z);
-        add(box(4, .25, .25, 0xf2c14e), 0, 2.1, -1.8); break;
-      case 1: { const t = new THREE.Mesh(new THREE.ConeGeometry(2, 2.8, 4), new THREE.MeshStandardMaterial({ color: col })); t.castShadow = true; add(t, 0, 1.4, 0); break; }
-      case 2: add(box(3.2, 2.2, 3.2, col, 1, 2), 0, 1.1, 0); add(roof(3.2, 3.2, 1.8, rc), 0, 3.1, 0); break;
-      case 3: add(box(4, 3, 3.6, col, 1, 3), 0, 1.5, 0); add(roof(4, 3.6, 2.2, rc), 0, 4.1, 0); add(box(.5, 1.6, .5, 0x777777), 1.2, 4.6, .6); break;
+      case 1: fence(); farmhouse(-.4, -.3); hay(1.9, 1.7); tree(2, -1.8, .8); break;
+      case 2: fence(); farmhouse(-1.3, -.5, 1.05); barn(1.5, -.3); hay(-1.8, 2); hay(-.9, 2.2); tree(2.3, 2.3, .8); break;
+      case 3: fence();
+        add(box(3.4, 3.2, 3, 0xf3ead8, 2, 3), -1, 1.6, -.6); add(gable(3.4, 3, 1.6, 0xb23a2a), -1, 3.2, -.6);
+        add(box(.4, 1.4, .4, 0x8a5a44), -2, 4.2, -1); barn(1.8, .2); hay(-2, 2.1); hay(-1, 2.3); tree(2.4, -2.3, .9); tree(-2.4, -2.4, .7); break;
       case 4: add(box(4.2, 5.2, 4.2, col, 2, 3), 0, 2.6, 0); add(roof(4.2, 4.2, 2.4, rc), 0, 6.4, 0); break;
       case 5: add(box(5.6, 4, 4, col, 2, 4), 0, 2, -.4); add(roof(5.6, 4, 2.2, rc), 0, 5.1, -.4); add(box(2.4, .2, 1.6, 0x3aa0ff), 1.5, .25, 2.2); break;
       default: add(box(5.8, 6, 3.8, col, 3, 4), 0, 3, -.6); add(box(2.6, 4, 2.6, col, 2, 2), -1.6, 2, 1.8);
@@ -267,11 +306,13 @@ function label(text, level, prog = 0) {
   g.fillStyle = big ? 'rgba(120,80,0,.88)' : level >= 10 ? 'rgba(30,50,90,.88)' : 'rgba(10,12,28,.82)';
   g.beginPath(); g.roundRect((512 - w) / 2, 8, w, 150, 34); g.fill();
   g.strokeStyle = big ? '#ffd23f' : level >= 10 ? '#7fc8ff' : 'rgba(255,255,255,.35)'; g.lineWidth = 4; g.stroke();
-  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 56, w - 40);
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (level === null) { g.fillText(text, 256, 83, w - 40); }
+  else { g.fillText(text, 256, 56, w - 40);
   g.font = '700 34px Fredoka, Arial'; g.fillStyle = big ? '#ffe9a0' : '#ffd23f'; g.fillText(`Lv ${level}`, 256 - w / 2 + 70, 118);
   const bx = 256 - w / 2 + 130, bw = w - 160;                       // progress to next level
   g.fillStyle = 'rgba(255,255,255,.15)'; g.beginPath(); g.roundRect(bx, 106, bw, 24, 12); g.fill();
-  g.fillStyle = '#3ddc84'; g.beginPath(); g.roundRect(bx, 106, Math.max(24, bw * prog), 24, 12); g.fill();
+  g.fillStyle = '#3ddc84'; g.beginPath(); g.roundRect(bx, 106, Math.max(24, bw * prog), 24, 12); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, sizeAttenuation: false }));
   const k = big ? 1.2 : 1; s.scale.set(.095 * k, .031 * k, 1); s.renderOrder = 10; return s;
@@ -316,7 +357,11 @@ function freePlot() {
   }
   return p;
 }
-function removeHouse(pl) { if (!pl.plot) return; scene.remove(pl.plot.group); pl.plot.owner = null; pl.plot.group = null; pl.plot = null; }
+function disposeGroup(g) {
+  scene.remove(g);
+  g.traverse(o => { if (o.isMesh) o.geometry.dispose(); if (o.isSprite) { if (o === g.userData.label) o.material.map?.dispose(); o.material.dispose(); } });
+}
+function removeHouse(pl) { if (!pl.plot) return; if (pl.plot.group) disposeGroup(pl.plot.group); pl.plot.owner = null; pl.plot.group = null; pl.plot = null; }
 
 function ensurePlayer(id, nick, avatar, quiet = false) {
   let pl = state.players.get(id);
@@ -325,16 +370,51 @@ function ensurePlayer(id, nick, avatar, quiet = false) {
     state.players.set(id, pl);
     const p = freePlot(); if (!p) return pl;
     pl.plot = p; p.owner = pl;
-    placeHouse(pl, 0, false);
-    if (!quiet) toast(`👋 <b>${esc(pl.nick)}</b> zieht in die Stadt!`);
+    placeHouse(pl, 1, false);                       // everybody starts with a small farmhouse (Level 1)
+    burst(new THREE.Vector3(p.x, 3, p.z), 0x8affc8, 30); sfx('build');
+    focusHouse(pl);
+    if (!quiet) toast(`👋 <b>${esc(pl.nick)}</b> zieht in die Stadt – 🏡 Bauernhaus!`);
   } else if (nick) pl.nick = nick;
   return pl;
 }
+// merge all parts of a house that share the same look into one mesh -> a few draw calls per house
+// (keeps a city with ~400 houses smooth)
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buckets = new Map(), drop = [];
+  root.traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh) return;
+    const m = o.material;
+    const key = [m.type, m.color?.getHex(), m.emissive?.getHex(), m.emissiveIntensity, m.emissiveMap?.uuid, m.map?.uuid, m.transparent, m.opacity, m.metalness, m.roughness, m.side, m.blending, m.depthWrite].join('|');
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    if (!g.attributes.normal) g.computeVertexNormals();
+    if (!buckets.has(key)) buckets.set(key, { mat: m, geos: [], cast: o.castShadow, recv: o.receiveShadow });
+    const b = buckets.get(key); b.geos.push(g); b.cast ||= o.castShadow; b.recv ||= o.receiveShadow;
+    drop.push(o);
+  });
+  for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
+  for (const b of buckets.values()) {
+    const merged = new THREE.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2]]) {
+      const total = b.geos.reduce((n, g) => n + g.attributes[name].array.length, 0), arr = new Float32Array(total);
+      let off = 0; for (const g of b.geos) { arr.set(g.attributes[name].array, off); off += g.attributes[name].array.length; }
+      merged.setAttribute(name, new THREE.BufferAttribute(arr, size));
+    }
+    b.geos.forEach(g => g.dispose());
+    const mesh = new THREE.Mesh(merged, b.mat); mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; root.add(mesh);
+  }
+  return root;
+}
+const withArticle = n => ({ 'Villa': 'eine Villa', 'Große Villa': 'eine große Villa' }[n] || 'ein ' + n);
 function placeHouse(pl, level, celebrate) {
   const p = pl.plot; if (!p) return;
-  if (p.group) scene.remove(p.group);
+  const prevLevel = pl.level;
+  if (p.group) disposeGroup(p.group);
   const g = new THREE.Group(); g.position.set(p.x, .2, p.z);
-  const h = buildHouse(level, hash(pl.id)); g.add(h);
+  const h = mergeStatic(buildHouse(level, hash(pl.id))); g.add(h);
   const top = Math.min(new THREE.Box3().setFromObject(h).max.y, level >= 25 ? 60 : 200);
   pl.top = top;
   const lb = label(pl.nick.slice(0, 16), level, levelProgress(pl.bp)); lb.position.y = top + 2.2; g.add(lb); g.userData.label = lb;
@@ -343,14 +423,26 @@ function placeHouse(pl, level, celebrate) {
   animate(900, x => h.scale.set(1, Math.max(.01, easeOutBack(x)), 1));
   if (celebrate) {
     burst(new THREE.Vector3(p.x, top * .6, p.z), level >= 20 ? 0xffd23f : 0x8affc8, Math.min(120, 30 + level * 4));
-    if (level >= 1) { if (level >= 3) focusOn(new THREE.Vector3(p.x, 0, p.z), Math.min(top, 50)); banner(`LEVEL ${level}!`, `${levelName(level)} · ${pl.nick}${celebrate.bonus ? ` · +${celebrate.bonus} Sek.` : ''}`); sfx('level'); }
-    else sfx('build');
+    focusHouse(pl, true);
+    // small level-ups (2–4) as a toast, bigger ones as the big banner
+    if (level < 5) toast(`🏡 <b>${esc(pl.nick)}</b>: Level ${level} · ${levelName(level)}${celebrate.bonus ? ` · +${celebrate.bonus} Sek.` : ''}`, `Lv ${level}`, pl.avatar);
+    else banner(`LEVEL ${level}!`, `${levelName(level)} · ${pl.nick}${celebrate.bonus ? ` · +${celebrate.bonus} Sek.` : ''}`);
+    sfx('level');
+    // new house type (Bauernhaus → Bauernhof → Landhaus → Stadthaus → Villa → Große Villa → Hochhaus → Gold-Turm …) is announced
+    const nm = levelName(level), n = speakName(pl.nick);
+    if (prevLevel >= 1 && nm !== levelName(prevLevel)) say(pick([`${n}, dein Haus ist jetzt ${withArticle(nm)}!`, `Wow, ${n}! Aus deinem Haus wird ${withArticle(nm)}!`]), 'house');
+    else if (level <= 10 || level % 5 === 0) say(`${n}, dein Haus ist jetzt Level ${level}!`, 'level');
   }
+}
+// zoom the camera to a player's house so everybody sees it being built
+function focusHouse(pl, important = false) {
+  if (!pl?.plot) return;
+  focusOn(new THREE.Vector3(pl.plot.x, 0, pl.plot.z), Math.min(pl.top || 4, 50), important);
 }
 function addBP(pl, amount) {
   if (!pl) return;
   pl.bp += amount;
-  const lv = levelFor(pl.bp), before = Math.max(0, pl.level);
+  const lv = levelFor(pl.bp), before = Math.max(1, pl.level);
   if (lv !== pl.level) {
     // level bonus for the whole city: reaching level N adds N seconds (Level 9 = +9 s, Level 10 = +10 s …)
     let bonus = 0; const every = C.levels.bonusEveryLevels;
@@ -426,7 +518,7 @@ function handle(ev) {
     case 'chat': {
       const t = (ev.text || '').trim().toLowerCase();
       const m = t.match(/^(?:antwort\s*)?([abc])\s*[).!:]*\s*$/);
-      if (m && quiz.active) { quizAnswer(ev, 'abc'.indexOf(m[1])); break; }
+      if (m && quizBusy()) { quizAnswer(ev, 'abc'.indexOf(m[1])); break; }
       if (C.joinWords.some(w => t.includes(w))) ensurePlayer(ev.user, ev.nick, ev.avatar);
       break;
     }
@@ -435,6 +527,7 @@ function handle(ev) {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar, unitPrice < C.mentions.minCoinsPerGift);
       const coins = ev.coins || 1;
       addBP(pl, coins * mult());
+      if (pl.plot) { focusHouse(pl); burst(new THREE.Vector3(pl.plot.x, (pl.top || 4) + 1, pl.plot.z), 0xff5aa0, Math.min(40, 6 + coins * 2), 7, 1); }
       state.coins += coins;
       if (C.timerBonus.enabled) {
         // coins are collected, so small gifts (e.g. single roses) also add time
@@ -463,6 +556,8 @@ function handle(ev) {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
       if (C.follow.bonusPoints) addBP(pl, C.follow.bonusPoints);
       shout(`❤️ Danke fürs Folgen, <b>${esc(pl.nick)}</b>!${C.follow.bonusPoints ? ` +${C.follow.bonusPoints} Baupunkte` : ' Willkommen in der Stadt 🏠'}`, 'pink', ev.avatar);
+      say(pick([`Danke fürs Folgen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Folgen! Willkommen in der Stadt!`]), 'follow');
+      focusHouse(pl);
       sfx('follow');
       break;
     }
@@ -473,6 +568,8 @@ function handle(ev) {
         shout(`🔁 <b>${esc(pl.nick)}</b> hat geteilt! +${C.share.bonusPoints} Baupunkte 🏗️`, 'teal', ev.avatar);
         if (pl.plot) burst(new THREE.Vector3(pl.plot.x, 6, pl.plot.z), 0x33d6d6, 40);
       } else shout(`🔁 Danke fürs Teilen, <b>${esc(pl.nick)}</b>!`, 'teal', ev.avatar);
+      say(pick([`Danke fürs Teilen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Teilen!`]), 'share');
+      focusHouse(pl);
       sfx('share');
       break;
     }
@@ -532,7 +629,9 @@ function updateHappy(t) {
 // =====================================================================================
 // Spoken thank-you (browser speech synthesis – on Windows/Edge natural German voices)
 // =====================================================================================
-const speech = { voice: null, queue: [], busy: false, unlocked: false };
+const speech = { voice: null, queue: [], later: [], busy: false, unlocked: false };
+// importance of spoken sentences: the most important waiting sentence is spoken next
+const RANK = { level: 0, gift: 1, follow: 2, share: 2, house: 2, goal: 3, quiz: 4 };
 function pickVoice() {
   if (!('speechSynthesis' in window)) return;
   const de = speechSynthesis.getVoices().filter(v => /^de(-|_|$)/i.test(v.lang));
@@ -553,18 +652,40 @@ function sayThanks(nick, gift, count, coins) {
   else if (coins >= 100) text = pick([`Wahnsinn, ${n}! Vielen Dank für ${what}!`, `${n}, du bist super! Danke für ${what}!`]);
   else if (coins >= 30) text = pick([`Wow, danke ${n} für ${what}! Dein Haus wächst!`, `Danke dir, ${n}, für ${what}!`]);
   else text = pick([`Danke, ${n}!`, `Lieben Dank, ${n}!`, `Danke dir, ${n}, das ist lieb!`]);
-  if (speech.queue.length >= 4) speech.queue.splice(0, speech.queue.length - 3);  // don't fall behind during gift storms
-  speech.queue.push(text); nextSpeech();
+  say(text, 'gift');
 }
+// speak any sentence (follow, share, level, goals …) – queued so nothing overlaps
+function say(text, kind = '') {
+  if (!C.voice.enabled || !('speechSynthesis' in window) || !text) return;
+  // while the quiz runs it has priority: thank-yous are skipped, goal announcements wait until afterwards
+  if (quizBusy() && kind !== 'quiz') { if (kind === 'goal') speech.later.push({ text, kind }); return; }
+  // don't fall behind: level-ups are only spoken when nothing else is waiting,
+  // and when the queue gets long the least important sentences are dropped first
+  if (kind === 'level' && (speech.queue.length || speech.busy)) return;
+  speech.queue.push({ text, kind });
+  while (speech.queue.length > 3) {
+    let k = 0; speech.queue.forEach((q, i) => { if ((RANK[q.kind] ?? 1) < (RANK[speech.queue[k].kind] ?? 1)) k = i; });
+    speech.queue.splice(k, 1);
+  }
+  nextSpeech();
+}
+function quietForQuiz() {
+  for (const q of speech.queue) if (q.kind === 'goal') speech.later.push(q);   // goals are kept for later
+  speech.queue = [];
+  if (speech.busy) { speech.cur = (speech.cur || 0) + 1; speech.busy = false; try { speechSynthesis.cancel(); } catch { } }
+}
+function releaseQuizSpeech() { const l = speech.later.splice(0); for (const q of l) say(q.text, q.kind); }
 function nextSpeech() {
   if (speech.busy || !speech.queue.length) return;
-  const u = new SpeechSynthesisUtterance(speech.queue.shift());
+  let k = 0; speech.queue.forEach((q, i) => { if ((RANK[q.kind] ?? 1) > (RANK[speech.queue[k].kind] ?? 1)) k = i; });
+  const u = new SpeechSynthesisUtterance(speech.queue.splice(k, 1)[0].text);
   u.lang = 'de-DE'; if (speech.voice) u.voice = speech.voice;
   u.rate = C.voice.rate; u.pitch = C.voice.pitch; u.volume = C.voice.volume;
-  speech.busy = true;
-  u.onend = u.onerror = () => { speech.busy = false; setTimeout(nextSpeech, 250); };
+  speech.busy = true; const id = speech.cur = (speech.cur || 0) + 1;
+  const done = () => { if (speech.cur !== id || !speech.busy) return; speech.busy = false; setTimeout(nextSpeech, 250); };
+  u.onend = u.onerror = done;
   speechSynthesis.speak(u);
-  setTimeout(() => { if (speech.busy) { speech.busy = false; nextSpeech(); } }, 12000); // safety
+  setTimeout(done, 15000); // safety – only for THIS sentence
 }
 const giftHtml = (name, img) => img ? `<img class="gimg" src="${esc(img)}" alt="" referrerpolicy="no-referrer">` : giftIcon(name);
 function megaGift(pl, ev, coins) {
@@ -589,66 +710,266 @@ function nextShout() {
 const giftIcon = n => /rose/i.test(n || '') ? '🌹' : /lion|löwe/i.test(n || '') ? '🦁' : /universe|universum|galaxy|galaxie/i.test(n || '') ? '🌌' : '🎁';
 
 function checkGoals() {
+  const done = { coin: [], like: [] };
   while (state.coins >= state.coinTarget) {
     const name = C.coinGoal.names[state.coinGoalIdx % C.coinGoal.names.length];
-    buildCommunity('coin', name); state.coinGoalIdx++; state.coinBase = state.coinTarget; state.coinTarget += Math.round(C.coinGoal.target * Math.pow(1.5, state.coinGoalIdx));
+    buildCommunity('coin', name); done.coin.push(name); state.coinGoalIdx++; state.coinBase = state.coinTarget; state.coinTarget += Math.round(C.coinGoal.target * Math.pow(1.5, state.coinGoalIdx));
   }
+  // like goals: always every 5.000 likes (config likeGoal.target) something new the city needs
   while (state.likes >= state.likeTarget) {
     const name = C.likeGoal.names[state.likeGoalIdx % C.likeGoal.names.length];
-    buildCommunity('like', name); state.likeGoalIdx++; state.likeBase = state.likeTarget; state.likeTarget += Math.round(C.likeGoal.target * Math.pow(1.5, state.likeGoalIdx));
+    buildCommunity('like', name); done.like.push(name); state.likeGoalIdx++; state.likeBase = state.likeTarget; state.likeTarget += C.likeGoal.target;
   }
+  // every 20.000 likes: one more time generator
+  const gens = C.generator.everyLikes > 0 ? Math.floor(state.likes / C.generator.everyLikes) : 0;
+  for (const kind of ['coin', 'like']) {
+    const n = done[kind]; if (!n.length) continue;
+    const list = n.length > 1 ? n.slice(0, -1).join(', ') + ' und ' + n[n.length - 1] : n[0];
+    say(`${kind === 'coin' ? 'Coin' : 'Like'}-Ziel${n.length > 1 ? 'e' : ''} geschafft! Neu in der Stadt: ${list}!`, 'goal');
+  }
+  while ((state.generators || 0) < gens) addGenerator();
 }
-const communitySlots = [[-9, -9], [9, 9], [9, -9], [-9, 9], [0, 0]];
+
+// ---------- community buildings on the central plaza ----------
+const communitySlots = [[-10, -10], [10, -10], [-10, 10], [10, 10], [0, -11], [0, 11], [-11, 0], [11, 0], [0, 0]];
 const communityGroups = [];
-function buildCommunity(kind, name) {
-  const i = state.built.length % communitySlots.length;
-  const [dx, dz] = communitySlots[i];
-  const g = new THREE.Group(); g.position.set(plazaCenter.x + dx, .3, plazaCenter.z + dz);
-  if (kind === 'coin') {
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(7, 8, 4, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0xd8d8e8, side: THREE.DoubleSide }));
-    ring.position.y = 2; ring.castShadow = true; g.add(ring);
-    const field = new THREE.Mesh(new THREE.CircleGeometry(6.8, 28), new THREE.MeshStandardMaterial({ color: 0x3ca04a })); field.rotation.x = -Math.PI / 2; field.position.y = .3; g.add(field);
-    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + .4; const l = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); l.scale.set(6, 6, 1); l.position.set(Math.cos(a) * 8, 7, Math.sin(a) * 8); g.add(l); }
-  } else {
-    const base = box(3.5, 2, 3.5, 0x9a9aa8); base.position.y = 1; g.add(base);
-    const body = new THREE.Mesh(new THREE.SphereGeometry(2.1, 20, 16), new THREE.MeshStandardMaterial({ color: 0xffc23a, metalness: .7, roughness: .3, emissive: 0x663300 }));
-    body.position.y = 4.2; g.add(body);
-    const mane = new THREE.Mesh(new THREE.TorusGeometry(1.6, .7, 10, 20), new THREE.MeshStandardMaterial({ color: 0xc87a1a, metalness: .5, roughness: .4 }));
-    mane.position.set(0, 5.6, .6); g.add(mane);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 14), body.material); head.position.set(0, 5.6, .9); g.add(head);
+const glow = (color, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.set(size, size, 1); return s; };
+const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .6, ...extra });
+const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; return m; };
+const RAINBOW = [0xff5aa0, 0xffd23f, 0x3ddc84, 0x33d6ff, 0xb05bff, 0xff8a3d];
+
+const MODELS = {
+  riesenrad(g) {
+    const steel = std(0xe8e8f0, { metalness: .4 });
+    for (const s of [-1, 1]) for (const z of [-1.2, 1.2]) { const leg = mesh(new THREE.CylinderGeometry(.18, .25, 7.2), steel, s * 1.9, 3.3, z); leg.rotation.z = s * .28; g.add(leg); }
+    const wheel = new THREE.Group(); wheel.position.y = 6.6; g.add(wheel);
+    wheel.add(mesh(new THREE.TorusGeometry(4.6, .14, 8, 48), steel));
+    wheel.add(mesh(new THREE.TorusGeometry(.5, .2, 8, 16), steel));
+    const cabins = [];
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * Math.PI * 2;
+      const sp = mesh(new THREE.BoxGeometry(.08, 4.6, .08), steel, Math.cos(a) * 2.3, Math.sin(a) * 2.3, 0); sp.rotation.z = a - Math.PI / 2; wheel.add(sp);
+      const cab = mesh(new THREE.BoxGeometry(.9, .8, .9), std(RAINBOW[i % RAINBOW.length], { emissive: RAINBOW[i % RAINBOW.length], emissiveIntensity: .35 }), Math.cos(a) * 4.6, Math.sin(a) * 4.6 - .55, 0);
+      wheel.add(cab); cabins.push(cab);
+      const l = glow(RAINBOW[(i + 2) % RAINBOW.length], 1.6); l.position.set(Math.cos(a + .31) * 4.6, Math.sin(a + .31) * 4.6, .2); wheel.add(l);
+    }
+    g.userData.tick = (t, dt) => { wheel.rotation.z += dt * .00035; for (const c of cabins) c.rotation.z = -wheel.rotation.z; };
+    return 12;
+  },
+  bushaltestelle(g) {
+    g.add(mesh(new THREE.BoxGeometry(7, .2, 3), std(0x8a8a96), 0, .1, -1));                    // platform
+    g.add(mesh(new THREE.BoxGeometry(3.6, 2.4, .1), std(0x9fd8ff, { transparent: true, opacity: .45 }), -1, 1.4, -2.2));
+    g.add(mesh(new THREE.BoxGeometry(4, .15, 1.6), std(0x2d6cdf), -1, 2.65, -1.6));           // roof
+    for (const x of [-2.8, .8]) g.add(mesh(new THREE.BoxGeometry(.12, 2.5, .12), std(0x555a66), x, 1.35, -.9));
+    g.add(mesh(new THREE.BoxGeometry(2.6, .15, .6), std(0xc89a5a), -1, .7, -1.8));             // bench
+    g.add(mesh(new THREE.CylinderGeometry(.08, .08, 3), std(0x555a66), 2.6, 1.5, -.4));
+    const sign = mesh(new THREE.CylinderGeometry(.55, .55, .1, 24), std(0xffd23f, { emissive: 0x806000 }), 2.6, 3.1, -.4); sign.rotation.x = Math.PI / 2; g.add(sign);
+    const sl = glow(0xffe08a, 3); sl.position.set(-1, 2.4, -1.4); g.add(sl);
+    const bus = new THREE.Group(); bus.position.set(0, 0, 1.8); g.add(bus);
+    const body = new THREE.MeshStandardMaterial({ color: 0xffc23a, roughness: .5, emissiveMap: windowTexture(1, 6), emissive: 0xffffff, emissiveIntensity: .9 });
+    bus.add(mesh(new THREE.BoxGeometry(6, 2, 1.8), body, 0, 1.4, 0));
+    for (const x of [-2, 2]) for (const z of [-.9, .9]) { const w = mesh(new THREE.CylinderGeometry(.4, .4, .3, 14), std(0x222222), x, .45, z); w.rotation.x = Math.PI / 2; bus.add(w); }
+    const head = glow(0xffffff, 2); head.position.set(3.1, 1, 0); bus.add(head);
+    g.userData.tick = t => { const p = (t / 9000) % 1; bus.position.x = p < .35 ? 14 * (1 - p / .35) : p < .7 ? 0 : -14 * (p - .7) / .3; bus.visible = Math.abs(bus.position.x) < 13; };
+    return 4;
+  },
+  lampen(g) {   // a ring of colourful lamps around the plaza + light chains
+    g.position.set(plazaCenter.x, .3, plazaCenter.z); g.userData.noSlot = true;
+    const lights = [];
+    const R = plazaSize / 2 - .8;
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * Math.PI * 2, x = Math.cos(a) * R, z = Math.sin(a) * R;
+      g.add(mesh(new THREE.CylinderGeometry(.12, .16, 4), std(0x333842), x, 2, z));
+      const l = glow(RAINBOW[i % RAINBOW.length], 4); l.position.set(x, 4.2, z); g.add(l); lights.push(l);
+      const b = mesh(new THREE.SphereGeometry(.3, 10, 8), new THREE.MeshBasicMaterial({ color: RAINBOW[i % RAINBOW.length] }), x, 4.1, z); g.add(b);
+    }
+    g.userData.tick = t => lights.forEach((l, i) => { const k = 3.2 + Math.sin(t / 300 + i) * 1.2; l.scale.set(k, k, 1); });
+    return 6;
+  },
+  feuerwerk(g) {
+    g.add(mesh(new THREE.BoxGeometry(4, .6, 4), std(0x5a3a6a), 0, .3, 0));
+    for (let i = 0; i < 5; i++) { const tube = mesh(new THREE.CylinderGeometry(.35, .35, 2.2, 10), std(RAINBOW[i], { emissive: RAINBOW[i], emissiveIntensity: .3 }), -1.4 + i * .7, 1.6, (i % 2 ? .6 : -.6)); tube.rotation.z = (i - 2) * .12; g.add(tube); }
+    g.userData.nextFw = performance.now() + 6000;
+    g.userData.tick = t => { if (t > g.userData.nextFw) { g.userData.nextFw = t + 12000; fireworks(g.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, -10, 0)), 3); } };
+    setTimeout(() => fireworks(plazaCenter, 10), 600);
+    return 4;
+  },
+  springbrunnen(g) {
+    g.add(mesh(new THREE.CylinderGeometry(3.4, 3.6, .9, 28), std(0xc8c8d0), 0, .45, 0));
+    g.add(mesh(new THREE.CylinderGeometry(3, 3, .2, 28), std(0x33a8ff, { emissive: 0x115588, transparent: true, opacity: .85 }), 0, .85, 0));
+    g.add(mesh(new THREE.CylinderGeometry(.4, .6, 2.4), std(0xc8c8d0), 0, 1.6, 0));
+    const jet = mesh(new THREE.ConeGeometry(.9, 3, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: .5 }), 0, 3.8, 0); g.add(jet);
+    g.userData.tick = t => jet.scale.set(1, 1 + Math.sin(t / 250) * .15, 1);
+    return 6;
+  },
+  spielplatz(g) {
+    g.add(mesh(new THREE.BoxGeometry(7, .1, 6), std(0xe8c88a), 0, .05, 0));
+    g.add(mesh(new THREE.BoxGeometry(1.6, 2.4, 1.6), std(0xff5aa0), -2, 1.2, -1));
+    const slide = mesh(new THREE.BoxGeometry(1, .15, 3.4), std(0xffd23f), -2, 1.3, 1.2); slide.rotation.x = -.6; g.add(slide);
+    for (const x of [1, 3.2]) g.add(mesh(new THREE.BoxGeometry(.15, 2.6, .15), std(0x33d6ff), x, 1.3, 0));
+    g.add(mesh(new THREE.BoxGeometry(2.4, .15, .15), std(0x33d6ff), 2.1, 2.6, 0));
+    const swing = new THREE.Group(); swing.position.set(2.1, 2.6, 0); g.add(swing);
+    swing.add(mesh(new THREE.BoxGeometry(.05, 1.8, .05), std(0x999999), -.3, -.9, 0), mesh(new THREE.BoxGeometry(.05, 1.8, .05), std(0x999999), .3, -.9, 0), mesh(new THREE.BoxGeometry(.8, .1, .4), std(0x3ddc84), 0, -1.8, 0));
+    g.userData.tick = t => swing.rotation.x = Math.sin(t / 500) * .5;
+    return 4;
+  },
+  leuchtturm(g) {
+    g.add(mesh(new THREE.CylinderGeometry(1.2, 1.8, 9, 16), std(0xf0f0f0, { emissiveMap: windowTexture(3, 1), emissive: 0xffffff, emissiveIntensity: .4 }), 0, 4.5, 0));
+    g.add(mesh(new THREE.CylinderGeometry(1.25, 1.25, 1, 16), std(0xd03030), 0, 6.5, 0));
+    g.add(mesh(new THREE.CylinderGeometry(1, 1, 1.4, 16), std(0xfff3b0, { emissive: 0xffd060, emissiveIntensity: 1 }), 0, 9.7, 0));
+    g.add(mesh(new THREE.ConeGeometry(1.4, 1.4, 16), std(0xd03030), 0, 11.1, 0));
+    const beam = mesh(new THREE.ConeGeometry(2.4, 16, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, opacity: .2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 0, 0, 8);
+    beam.rotation.x = -Math.PI / 2; const bg = new THREE.Group(); bg.position.y = 9.7; bg.add(beam); g.add(bg);
+    g.userData.tick = (t, dt) => bg.rotation.y += dt * .0012;
+    return 12;
+  },
+  stadion(g) {
+    g.add(mesh(new THREE.CylinderGeometry(4.4, 5, 2.6, 28, 1, true), std(0xd8d8e8, { side: THREE.DoubleSide }), 0, 1.3, 0));
+    const field = mesh(new THREE.CircleGeometry(4.3, 28), std(0x3ca04a), 0, .2, 0); field.rotation.x = -Math.PI / 2; g.add(field);
+    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + .4; const l = glow(0xffffff, 5); l.position.set(Math.cos(a) * 5, 5, Math.sin(a) * 5); g.add(l); g.add(mesh(new THREE.CylinderGeometry(.1, .1, 5), std(0x555a66), Math.cos(a) * 5, 2.5, Math.sin(a) * 5)); }
+    return 5;
+  },
+  flughafen(g) {
+    const rw = mesh(new THREE.BoxGeometry(8, .1, 2), std(0x2a2d36), 0, .1, 1); g.add(rw);
+    g.add(mesh(new THREE.CylinderGeometry(.5, .6, 5), std(0xd8d8e8), -3, 2.5, -2), mesh(new THREE.CylinderGeometry(1, .8, 1, 12), std(0x9fd8ff, { emissive: 0x3388aa }), -3, 5.4, -2));
+    const plane = new THREE.Group(); plane.position.set(1, 1, 1); g.add(plane);
+    plane.add(mesh(new THREE.CylinderGeometry(.35, .35, 3.6, 12), std(0xffffff), 0, 0, 0)); plane.children[0].rotation.z = Math.PI / 2;
+    plane.add(mesh(new THREE.BoxGeometry(.8, .08, 4), std(0x2d6cdf), 0, 0, 0), mesh(new THREE.BoxGeometry(.5, 1, .08), std(0x2d6cdf), -1.6, .5, 0));
+    g.userData.tick = t => { const p = (t / 7000) % 1; plane.position.x = -3 + p * 16; plane.position.y = 1 + Math.max(0, p - .35) * 18; plane.visible = p < .9; };
+    return 6;
+  },
+  raketenstart(g) {
+    g.add(mesh(new THREE.BoxGeometry(4, .5, 4), std(0x555a66), 0, .25, 0));
+    const r = new THREE.Group(); g.add(r);
+    r.add(mesh(new THREE.CylinderGeometry(.8, .8, 6, 16), std(0xf0f0f0), 0, 3.5, 0), mesh(new THREE.ConeGeometry(.8, 1.8, 16), std(0xd03030), 0, 7.4, 0));
+    for (let i = 0; i < 3; i++) { const f = mesh(new THREE.BoxGeometry(.1, 1.4, 1), std(0xd03030), Math.cos(i * 2.09) * .8, 1.2, Math.sin(i * 2.09) * .8); f.rotation.y = -i * 2.09; r.add(f); }
+    const flame = glow(0xff8a3d, 3); flame.position.y = .2; r.add(flame);
+    g.userData.tick = t => flame.scale.setScalar(2.4 + Math.random() * 1.2);
+    return 9;
+  },
+  loewe(g) {
+    g.add(mesh(new THREE.BoxGeometry(3.5, 2, 3.5), std(0x9a9aa8), 0, 1, 0));
+    const gold = std(0xffc23a, { metalness: .7, roughness: .3, emissive: 0x663300 });
+    g.add(mesh(new THREE.SphereGeometry(2.1, 20, 16), gold, 0, 4.2, 0), mesh(new THREE.TorusGeometry(1.6, .7, 10, 20), std(0xc87a1a, { metalness: .5 }), 0, 5.6, .6), mesh(new THREE.SphereGeometry(1.2, 18, 14), gold, 0, 5.6, .9));
+    return 8;
+  },
+  generator(g) {
+    g.add(mesh(new THREE.BoxGeometry(4.6, 1, 4.6), std(0x3a3f5a), 0, .5, 0));
+    const core = mesh(new THREE.CylinderGeometry(1, 1, 4, 16), std(0x33d6ff, { emissive: 0x33d6ff, emissiveIntensity: 1.2 }), 0, 3, 0); g.add(core);
+    const rings = [0, 1, 2].map(i => { const r = mesh(new THREE.TorusGeometry(1.7, .14, 8, 32), new THREE.MeshBasicMaterial({ color: 0xffd23f }), 0, 1.8 + i * 1.2, 0); r.rotation.x = Math.PI / 2; g.add(r); return r; });
+    for (const [x, z] of [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]]) g.add(mesh(new THREE.CylinderGeometry(.18, .18, 4.4), std(0x777f99, { metalness: .6 }), x, 3.2, z));
+    const halo = glow(0x33d6ff, 9); halo.position.y = 3; g.add(halo);
+    g.userData.pulse = 0;
+    g.userData.tick = (t, dt) => {
+      rings.forEach((r, i) => { r.rotation.z += dt * .002 * (i % 2 ? -1 : 1); r.position.y = 1.8 + i * 1.2 + Math.sin(t / 400 + i) * .25; });
+      g.userData.pulse = Math.max(0, g.userData.pulse - dt / 900);
+      const k = 8 + Math.sin(t / 200) * 1 + g.userData.pulse * 14; halo.scale.set(k, k, 1);
+      core.material.emissiveIntensity = 1.2 + g.userData.pulse * 2;
+    };
+    return 7;
+  },
+};
+const modelFor = (kind, name) => {
+  const n = String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const keys = { riesenrad: 'riesenrad', bus: 'bushaltestelle', lamp: 'lampen', licht: 'lampen', feuerwerk: 'feuerwerk', brunnen: 'springbrunnen', spielplatz: 'spielplatz',
+    leuchtturm: 'leuchtturm', stadion: 'stadion', flughafen: 'flughafen', rakete: 'raketenstart', lowe: 'loewe', loewe: 'loewe', generator: 'generator' };
+  for (const [k, m] of Object.entries(keys)) if (n.includes(k)) return MODELS[m];
+  return kind === 'coin' ? MODELS.stadion : MODELS.loewe;
+};
+function freeSlot() {
+  const used = new Set(communityGroups.filter(g => !g.userData.noSlot).map(g => g.userData.slot));
+  let i = communitySlots.findIndex((_, k) => !used.has(k));
+  if (i < 0) {   // plaza full -> the oldest building makes room
+    const old = communityGroups.find(g => !g.userData.noSlot && g.userData.kind !== 'generator');
+    if (!old) return 0;
+    i = old.userData.slot; scene.remove(old); communityGroups.splice(communityGroups.indexOf(old), 1);
   }
-  const lb = label(name, 8); lb.position.y = 10; g.add(lb);
-  scene.add(g); state.built.push({ kind, name }); communityGroups.push(g);
+  return i;
+}
+function placeCommunity(kind, name) {
+  const g = new THREE.Group();
+  const model = modelFor(kind, name);
+  const slot = freeSlot();
+  const [dx, dz] = communitySlots[slot];
+  g.position.set(plazaCenter.x + dx, .3, plazaCenter.z + dz);
+  g.userData.slot = slot; g.userData.kind = kind;
+  const h = model(g);                 // models may move themselves (e.g. lamps around the plaza)
+  const lb = label(name, null); lb.position.y = h + 2.5; g.add(lb);
+  if (g.userData.noSlot) lb.position.set(0, h + 2.5, -plazaSize / 2 + 1);
+  scene.add(g); communityGroups.push(g);
   g.scale.setScalar(.01); animate(1200, x => g.scale.setScalar(Math.max(.01, easeOutBack(x))));
-  focusOn(g.position, 8); fireworks(g.position, 8);
+  focusOn(g.position, Math.min(h, 10), true);
+  return g;
+}
+function buildCommunity(kind, name) {
+  const g = placeCommunity(kind, name);
+  state.built.push({ kind, name });
+  fireworks(g.position, 8);
   banner(kind === 'coin' ? 'COIN-ZIEL!' : 'LIKE-ZIEL!', `${name} wurde gebaut! 🎉`);
+  sfx('level');
+}
+// ---------- time generator (every 20.000 likes) ----------
+function addGenerator(quiet = false) {
+  state.generators = (state.generators || 0) + 1;
+  if (!state.genNext || state.genNext < Date.now()) state.genNext = Date.now() + C.generator.intervalSeconds * 1000;
+  const n = state.generators;
+  placeCommunity('generator', n > 1 ? `⚡ Generator ${n}` : '⚡ Generator');
+  if (quiet) return;
+  banner('⚡ GENERATOR!', `${fmt(n * C.generator.everyLikes)} Likes · alle ${C.generator.intervalSeconds} Sek. +${n * C.generator.bonusSeconds} Sek. Zeit`, 'happy');
+  shout(`⚡ <b>${fmt(n * C.generator.everyLikes)} Likes!</b> Ein Zeit-Generator läuft: alle ${C.generator.intervalSeconds} Sek. <b>+${C.generator.bonusSeconds} Sek.</b> für alle!`, 'teal');
+  say(`${fmt(n * C.generator.everyLikes)} Likes! Generator an: alle ${C.generator.intervalSeconds} Sekunden ${C.generator.bonusSeconds} Sekunden mehr!`, 'goal');
+  sfx('mega'); dirty = true;
+}
+function updateGenerators() {
+  const n = state.generators || 0;
+  if (!n || Date.now() < state.genNext) return;
+  const secs = n * C.generator.bonusSeconds;
+  state.roundEnd += secs * 1000;
+  state.genNext = Date.now() + C.generator.intervalSeconds * 1000;
+  timerBonus(`+${secs} Sek. · ⚡ Generator${n > 1 ? ' ×' + n : ''}`);
+  for (const g of communityGroups) if (g.userData.kind === 'generator') { g.userData.pulse = 1; burst(g.position.clone().add(new THREE.Vector3(0, 5, 0)), 0x33d6ff, 30, 9, 1.2); }
+  sfx('gen');
 }
 
 // =====================================================================================
 // Quiz
 // =====================================================================================
-const quiz = { active: false, next: performance.now() + 15000, q: null, answers: new Map(), first: null, end: 0, deck: [] };
-// Questions are drawn from a shuffled deck that is saved in the browser:
-// no question repeats until ALL questions were asked – even across reloads, new cities and new streams.
-function nextQuestion() {
+// quiz.active   = the question is on screen and answers are counted
+// quiz.closing  = visible timer is over, late answers (stream delay) are still accepted for graceSeconds
+const quiz = { active: false, closing: false, next: performance.now() + C.quiz.firstAfterSeconds * 1000, q: null, answers: new Map(), first: null, end: 0, asked: 0 };
+// difficulty: every `harderEvery` questions of a city the quiz gets one stage harder (1 = easy … 4 = very hard)
+const MAX_STAGE = Math.max(...QUESTIONS.map(q => q.d || 1));
+const quizStage = () => Math.min(MAX_STAGE, 1 + Math.floor(quiz.asked / Math.max(1, C.quiz.harderEvery)));
+const STAGE_NAME = ['', 'leicht', 'mittel', 'schwer', 'sehr schwer'];
+// Questions are drawn per stage from a deck that is saved in the browser:
+// no question repeats until ALL questions of that stage were asked – even across reloads, new cities and new streams.
+function nextQuestion(stage = quizStage()) {
   let used = [];
   try { used = JSON.parse(localStorage.getItem('wissenscity_used') || '[]'); } catch { }
-  let left = QUESTIONS.filter(q => !used.includes(q.q));
-  if (!left.length) { used = []; left = [...QUESTIONS]; }
+  const pool = QUESTIONS.filter(q => (q.d || 1) === stage);
+  let left = pool.filter(q => !used.includes(q.q));
+  if (!left.length) { const inPool = new Set(pool.map(q => q.q)); used = used.filter(u => !inPool.has(u)); left = [...pool]; }
   const q = left[Math.floor(Math.random() * left.length)];
   used.push(q.q);
   try { localStorage.setItem('wissenscity_used', JSON.stringify(used)); } catch { }
   quiz.left = left.length - 1;
   return q;
 }
+const quizBusy = () => quiz.active || quiz.closing;
 function startQuiz() {
-  quiz.q = nextQuestion(); quiz.active = true; quiz.answers.clear(); quiz.first = null;
+  const stage = quizStage();
+  quiz.q = nextQuestion(stage); quiz.stage = stage; quiz.asked++;
+  quiz.active = true; quiz.closing = false; quiz.answers.clear(); quiz.first = null;
   quiz.end = performance.now() + C.quiz.answerSeconds * 1000;
+  quiz.next = performance.now() + C.quiz.everySeconds * 1000;          // every 40 s (start to start)
+  quietForQuiz();                                                     // the quiz has priority: stop thank-you speech
+  $('qStage').textContent = `Stufe ${stage} · ${STAGE_NAME[stage] || ''}`;
+  $('qStage').className = 'qstage s' + stage;
   $('qText').textContent = quiz.q.q;
   ['qA', 'qB', 'qC'].forEach((id, i) => $(id).textContent = quiz.q.a[i]);
   ['qCA', 'qCB', 'qCC'].forEach(id => $(id).textContent = '0');
   document.querySelectorAll('.qopt').forEach(o => o.classList.remove('right', 'wrong'));
-  $('qHint').innerHTML = `Schreib <b>A</b>, <b>B</b> oder <b>C</b> in den Chat! Nur die erste Antwort zählt · richtig = <b>+${C.quiz.pointsCorrect * mult()}</b> Baupunkte 🌹`;
+  $('qHint').innerHTML = `Schnell! <b>A</b>, <b>B</b> oder <b>C</b> in den Chat – nur ${C.quiz.answerSeconds} Sekunden! Nur die erste Antwort zählt · richtig = <b>+${C.quiz.pointsCorrect * mult()}</b> Baupunkte 🌹`;
   $('quizLion').src = 'assets/lionQ.png';
   $('qFill').style.transition = 'none'; $('qFill').style.width = '100%';
   requestAnimationFrame(() => { $('qFill').style.transition = `width ${C.quiz.answerSeconds}s linear`; $('qFill').style.width = '0%'; });
@@ -661,9 +982,18 @@ function quizAnswer(ev, idx) {
   const counts = [0, 0, 0]; for (const a of quiz.answers.values()) counts[a.idx]++;
   ['qCA', 'qCB', 'qCC'].forEach((id, i) => $(id).textContent = counts[i]);
 }
+// visible time is up -> show "Auswertung …" while late answers (TikTok delay) still count
+function closeQuiz() {
+  quiz.closing = true;
+  $('qTimer').textContent = '⏳';
+  $('qHint').innerHTML = `⏳ Zeit um! Auswertung … <small>(${quiz.answers.size} Antwort${quiz.answers.size === 1 ? '' : 'en'})</small>`;
+}
 function endQuiz() {
-  quiz.active = false;
+  quiz.active = false; quiz.closing = false;
   const right = [...quiz.answers.entries()].filter(([, a]) => a.idx === quiz.q.c);
+  // spoken result first (before the points – so level-up lines don't jump the queue)
+  const n = quiz.answers.size, ans = quiz.q.a[quiz.q.c].replace(/°/g, ' Grad').replace(/%/g, ' Prozent').replace(/\s*\(.*?\)/g, '');
+  say(n ? `Richtig ist ${'ABC'[quiz.q.c]}: ${ans}! ${right.length} von ${n} lagen richtig.` : `Richtig ist ${'ABC'[quiz.q.c]}: ${ans}!`, 'quiz');
   document.querySelectorAll('.qopt').forEach(o => o.classList.add(+o.dataset.i === quiz.q.c ? 'right' : 'wrong'));
   $('quizLion').src = 'assets/lionA.png';
   for (const [id, a] of right) { const pl = ensurePlayer(id, a.nick, a.avatar); addBP(pl, (C.quiz.pointsCorrect + (id === quiz.first ? C.quiz.pointsFirst : 0)) * mult()); }
@@ -687,8 +1017,14 @@ function endQuiz() {
   }
   if (right.length) shout(`🧠 ${right.length === 1 ? '<b>' + names + '</b> hatte' : '<b>' + right.length + '</b> hatten'} die richtige Antwort – je +${pts} Baupunkte! 🎉`, 'teal');
   sfx(right.length ? 'right' : 'wrong');
-  setTimeout(() => { $('quiz').classList.add('hidden'); $('howto').classList.remove('hidden'); }, 6000);
-  quiz.next = performance.now() + C.quiz.everySeconds * 1000;
+  setTimeout(() => { if (!quiz.active) { $('quiz').classList.add('hidden'); $('howto').classList.remove('hidden'); } }, 6000);
+  // after every `harderEvery` questions: announce the next stage
+  if (quiz.asked % C.quiz.harderEvery === 0 && quizStage() > quiz.stage) {
+    const st = quizStage();
+    shout(`🧠 Quiz-<b>Stufe ${st}</b>: Ab jetzt wird es ${STAGE_NAME[st]}! 💪`, 'gold');
+    say(`Achtung! Quiz-Stufe ${st}. Jetzt wird es ${STAGE_NAME[st]}!`, 'quiz');
+  }
+  releaseQuizSpeech();
 }
 
 // =====================================================================================
@@ -711,7 +1047,9 @@ function renderHUD() {
     || '<div class="entry"><span class="n">Schreib „Haus“ 🏠</span></div>';
   $('lastGifts').innerHTML = state.lastGifts.map(g => `<div class="entry"><span class="medal">${giftHtml(g.gift, g.img)}</span><span class="n">${esc(g.nick)}<small>${g.count > 1 ? g.count + '× ' : ''}${esc(g.gift)} · +${fmt(g.bp)} BP</small></span></div>`).join('')
     || '<div class="entry"><span class="n">Noch keine 🌹</span></div>';
-  $('timerSub').textContent = C.timerBonus.enabled ? `${C.timerBonus.coinsPerSecond} Coins = +1 Sek.` : 'Runde läuft';
+  const gens = state.generators || 0;
+  $('timerSub').textContent = gens ? `⚡ Generator${gens > 1 ? ' ×' + gens : ''}: +${gens * C.generator.bonusSeconds} Sek. / ${C.generator.intervalSeconds} Sek.`
+    : C.timerBonus.enabled ? `${C.timerBonus.coinsPerSecond} Coins = +1 Sek.` : 'Runde läuft';
   dirty = false;
 }
 function toast(html, x = '', avatar = '') {
@@ -731,6 +1069,11 @@ function banner(title, sub, kind = '') {
   if (!bannerBusy) nextBanner();
 }
 function nextBanner() {
+  // big banners wait while the quiz card is on screen (they would cover the question) – except mega gifts / Happy Hour
+  const quizShown = !$('quiz').classList.contains('hidden');
+  if (quizShown && bannerQueue.length && !['mega', 'happy'].includes(bannerQueue[0].kind)) {
+    bannerCur = null; bannerBusy = true; $('banner').classList.add('hidden'); bannerTimer = setTimeout(nextBanner, 400); return;
+  }
   const it = bannerQueue.shift(); const b = $('banner');
   bannerCur = it || null;
   if (!it) { bannerBusy = false; b.classList.add('hidden'); return; }
@@ -755,8 +1098,9 @@ function newCity() {
     state.players.clear(); state.lastGifts = []; lastTop = [];
     for (const g of communityGroups) scene.remove(g); communityGroups.length = 0; state.built = [];
     Object.assign(state, { coins: 0, likes: 0, coinGoalIdx: 0, likeGoalIdx: 0, coinBase: 0, likeBase: 0,
-      coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0 });
+      coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0, generators: 0, genNext: 0 });
     nextRandomHappy = Date.now() + randMinutes(C.happy.randomEveryMinutes);
+    quiz.asked = 0;                                   // new city -> quiz starts easy again
     state.roundEnd = Date.now() + C.roundMinutes * 60000; dirty = true;
     save();
     shout('🏗️ Eine neue Stadt beginnt! Schreib <b>„Haus“</b> und bau mit! 🦁', 'teal');
@@ -766,22 +1110,36 @@ function newCity() {
 // =====================================================================================
 // Camera
 // =====================================================================================
-let focus = null;
-function focusOn(pos, height) { focus = { pos: pos.clone(), h: height, until: performance.now() + 3200 }; }
+// The camera flies close to whatever just happened (new house, level-up, gift, follow, share, goal).
+// Each shot is shown at least MIN ms; meanwhile only the newest wish is kept (+ important ones).
+let focus = null; const focusQueue = [];
+const FOCUS_MIN = 1900, FOCUS_MAX = 4200;
+function focusOn(pos, height, important = false) {
+  const it = { pos: pos.clone(), h: height, important };
+  const now = performance.now();
+  if (focus && focus.pos.distanceTo(it.pos) < .1) { focus.until = Math.max(focus.until, now + FOCUS_MAX); focus.h = Math.max(focus.h, height); return; }
+  if (!focus || now >= focus.min) { startFocus(it); return; }
+  for (let i = focusQueue.length - 1; i >= 0; i--) if (!focusQueue[i].important || focusQueue[i].pos.distanceTo(it.pos) < .1) focusQueue.splice(i, 1);
+  focusQueue.push(it); if (focusQueue.length > 3) focusQueue.shift();
+}
+function startFocus(it) { const now = performance.now(); focus = { ...it, min: now + FOCUS_MIN, until: now + FOCUS_MAX, ang: Math.random() * .8 - .4 }; }
 const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3();
 function updateCamera(t, dt) {
   const ang = t * 0.00004;
-  const ideal = new THREE.Vector3(Math.sin(ang) * 105, 92, Math.cos(ang) * 105 + 18);
+  const ideal = new THREE.Vector3(Math.sin(ang) * 150, 140, Math.cos(ang) * 150 + 24);
   const look = new THREE.Vector3(0, 0, 8);
-  if (focus && performance.now() < focus.until) {
-    ideal.set(focus.pos.x + Math.sin(ang) * 30, focus.h + 22, focus.pos.z + Math.cos(ang) * 30 + 10);
-    look.set(focus.pos.x, focus.h * .5, focus.pos.z);
+  const now = performance.now();
+  if (focus && now >= focus.min && focusQueue.length) startFocus(focusQueue.shift());
+  if (focus && now < focus.until) {
+    const h = focus.h, dist = 13 + h * 1.1, a = focus.ang + (now - focus.min) * 0.00006;   // close-up, slowly circling
+    ideal.set(focus.pos.x + Math.sin(a) * dist * .55, h * .6 + 7 + dist * .45, focus.pos.z + Math.cos(a) * dist);
+    look.set(focus.pos.x, h * .45 + 2.5, focus.pos.z);   // house sits a bit below the banners
   }
-  const k = 1 - Math.pow(.02, dt / 1000);
+  const k = 1 - Math.pow(.004, dt / 1000);
   camPos.lerp(ideal, k); camTarget.lerp(look, k);
   camera.position.copy(camPos); camera.lookAt(camTarget);
 }
-camPos.set(0, 105, 140);
+camPos.set(0, 150, 200);
 
 // =====================================================================================
 // Sound (small synthesized effects, no files needed)
@@ -812,6 +1170,7 @@ function sfx(k) {
   if (k === 'throne') { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .25, 'triangle', .11), i * 90)); }
   if (k === 'rank') { tone(700, .12, 'triangle', .09); setTimeout(() => tone(940, .18, 'triangle', .09), 100); }
   if (k === 'happy') { [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .22, 'square', .07), i * 120)); }
+  if (k === 'gen') { tone(330, .18, 'square', .06, 2); setTimeout(() => tone(990, .25, 'triangle', .09), 140); }
   if (k === 'mega') { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, .35, 'triangle', .13), i * 110)); }
 }
 
@@ -840,12 +1199,13 @@ const SIM = {
   big: () => handle({ type: 'gift', ...bot(), giftName: 'Löwe', count: 1, coins: 99 }),
   huge: () => handle({ type: 'gift', ...bot(), giftName: 'Universum', count: 1, coins: 500 }),
   likes: () => handle({ type: 'like', ...bot(), count: 500 }),
+  likes5k: () => handle({ type: 'like', ...bot(), count: 5000 }),
   galaxy: () => handle({ type: 'gift', ...bot(), giftName: 'Galaxy', count: 1, coins: 1000 }),
   follow: () => handle({ type: 'follow', ...bot() }),
   happy: () => startHappy([1, 2, 3, 4][Math.floor(Math.random() * 4)]),
   share: () => handle({ type: 'share', ...bot() }),
   quiz: () => { if (!quiz.active) startQuiz(); },
-  answers: () => { if (!quiz.active) startQuiz(); for (let i = 0; i < 14; i++) setTimeout(() => quiz.active && handle({ type: 'chat', ...bot(), text: Math.random() < .6 ? 'abc'[quiz.q.c] : 'abc'[Math.floor(Math.random() * 3)] }), i * 400); },
+  answers: () => { if (!quiz.active) startQuiz(); const p = [.75, .5, .4, .3][quiz.stage - 1] ?? .5; for (let i = 0; i < 10; i++) setTimeout(() => quizBusy() && handle({ type: 'chat', ...bot(), text: Math.random() < p ? 'abc'[quiz.q.c] : 'abc'[Math.floor(Math.random() * 3)] }), 300 + i * 450); },
   auto: () => {
     if (autoDemo) { clearInterval(autoDemo); autoDemo = null; }
     else autoDemo = setInterval(() => {
@@ -878,7 +1238,7 @@ function save() {
     localStorage.setItem('wissenscity', JSON.stringify({
       players: [...state.players.values()].map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes })),
       coins: state.coins, likes: state.likes, coinGoalIdx: state.coinGoalIdx, likeGoalIdx: state.likeGoalIdx,
-      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, happyUntil: state.happyUntil, savedAt: Date.now(),
+      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, happyUntil: state.happyUntil, built: state.built, generators: state.generators || 0, savedAt: Date.now(),
     }));
   } catch { /* storage not available */ }
 }
@@ -891,6 +1251,9 @@ function load() {
       const pl = { id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes || 0, level: -1, plot: null };
       state.players.set(pl.id, pl); const plot = freePlot(); if (plot) { pl.plot = plot; plot.owner = pl; placeHouse(pl, levelFor(pl.bp), false); }
     }
+    for (const b of s.built || []) { placeCommunity(b.kind, b.name); state.built.push(b); }
+    for (let i = 0; i < (s.generators || 0); i++) addGenerator(true);
+    focus = null; focusQueue.length = 0;
   } catch { /* ignore broken save */ }
 }
 load();
@@ -899,6 +1262,14 @@ setInterval(save, 5000);
 // =====================================================================================
 // Main loop
 // =====================================================================================
+function updateLabels() {
+  const top = new Set([...state.players.values()].filter(p => p.plot).sort((a, b) => b.bp - a.bp).slice(0, 10).map(p => p.id));
+  const tmp = new THREE.Vector3();
+  for (const pl of state.players.values()) {
+    const lb = pl.plot?.group?.userData.label; if (!lb) continue;
+    lb.visible = top.has(pl.id) || camera.position.distanceTo(tmp.set(pl.plot.x, 0, pl.plot.z)) < 75;
+  }
+}
 let last = performance.now(), lastHud = 0;
 function loop(t) {
   const dt = Math.min(100, t - last); last = t;
@@ -913,17 +1284,23 @@ function loop(t) {
   }
   // quiz scheduling
   if (!quiz.active && t > quiz.next) startQuiz();
-  if (quiz.active) { const left = Math.max(0, Math.ceil((quiz.end - t) / 1000)); $('qTimer').textContent = left; if (t >= quiz.end) endQuiz(); }
+  if (quiz.active && !quiz.closing) { const left = Math.max(0, Math.ceil((quiz.end - t) / 1000)); $('qTimer').textContent = left; if (t >= quiz.end) closeQuiz(); }
+  if (quiz.closing && t >= quiz.end + C.quiz.graceSeconds * 1000) endQuiz();
   // round timer
   const rest = Math.max(0, state.roundEnd - Date.now());
-  $('timer').textContent = `${Math.floor(rest / 60000)}:${String(Math.floor(rest / 1000) % 60).padStart(2, '0')}`;
+  const hh = Math.floor(rest / 3600000), mm = Math.floor(rest / 60000) % 60, ss = String(Math.floor(rest / 1000) % 60).padStart(2, '0');
+  $('timer').textContent = hh ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+  $('timer').classList.toggle('long', hh > 0);
   if (rest <= 0 && !newCity.pending) { newCity.pending = true; newCity(); setTimeout(() => newCity.pending = false, 4000); }
   updateHappy(t);
+  updateGenerators();
+  for (const g of communityGroups) g.userData.tick?.(t, dt);
   if (dirty && t - lastHud > 250) { renderHUD(); lastHud = t; }
   warm.intensity = 1.1 + Math.sin(t / 900) * .1;
   updateCamera(t, dt);
+  if (t - (loop.lastLabels || 0) > 300) { loop.lastLabels = t; updateLabels(); }
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.__game = { state, SIM, speech, sayThanks, handle, nextQuestion, checkRanking, ensurePlayer, addBP, focusOn: (x, z, h) => focusOn(new THREE.Vector3(x, 0, z), h) };
+window.__game = { state, quiz, startQuiz, renderer, plots, SIM, speech, sayThanks, handle, nextQuestion, checkRanking, ensurePlayer, addBP, focusOn: (x, z, h) => focusOn(new THREE.Vector3(x, 0, z), h) };
