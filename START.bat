@@ -11,6 +11,7 @@ if not exist node_modules (
   echo Installiere benoetigte Pakete ^(nur beim ersten Start^) ...
   call npm install
 )
-start "" http://localhost:8080
+rem Microsoft Edge hat die schoensten deutschen Stimmen (Seraphina, Florian, Katja, Conrad)
+start "" msedge "http://localhost:8080" 2>NUL || start "" "http://localhost:8080"
 node server.js
 pause

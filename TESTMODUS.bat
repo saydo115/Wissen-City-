@@ -8,6 +8,7 @@ if errorlevel 1 (
   exit /b
 )
 if not exist node_modules call npm install
-start "" "http://localhost:8080/?demo=1"
+rem Microsoft Edge hat die schoensten deutschen Stimmen (Seraphina, Florian, Katja, Conrad)
+start "" msedge "http://localhost:8080/?demo=1" 2>NUL || start "" "http://localhost:8080/?demo=1"
 node server.js --demo
 pause

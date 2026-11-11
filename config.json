@@ -95,11 +95,16 @@
   },
   "voice": {
     "enabled": true,
+    "voiceName": "",
     "minCoinsPerGift": 2,
     "rate": 1.05,
     "pitch": 1.0,
     "volume": 1.0,
     "preferVoices": [
+      "Seraphina",
+      "Florian",
+      "Katja Online",
+      "Conrad Online",
       "Natural",
       "Online",
       "Google",

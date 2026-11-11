@@ -133,3 +133,8 @@ html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font
 .qstage { font-style: normal; font-size: 20px; margin-left: 10px; padding: 2px 12px; border-radius: 12px; vertical-align: middle; color: #102; }
 .qstage.s1 { background: #3ddc84; } .qstage.s2 { background: #ffd23f; } .qstage.s3 { background: #ff8a3d; } .qstage.s4 { background: #ff4d5e; color: #fff; }
 .tval.long { font-size: 72px; }
+
+/* voice picker in the test panel */
+.voicebox { display: flex; gap: 8px; align-items: center; font-size: 18px; margin: 4px 0 8px; }
+.voicebox select { flex: 1; min-width: 0; font-size: 18px; padding: 4px; border-radius: 8px; }
+.voicebox button { padding: 4px 12px; }
