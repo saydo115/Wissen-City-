@@ -128,3 +128,8 @@ html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font
 /* ---------- audio unlock (click once before going live; disappears) ---------- */
 #unlock { position: absolute; left: 50%; top: 960px; transform: translate(-50%, -50%); z-index: 20; cursor: pointer;
   background: #ffd23f; color: #221; font-size: 36px; font-weight: 700; padding: 26px 40px; border-radius: 30px; box-shadow: 0 0 60px rgba(255, 210, 63, .7); text-align: center; max-width: 900px; }
+
+/* quiz difficulty badge */
+.qstage { font-style: normal; font-size: 20px; margin-left: 10px; padding: 2px 12px; border-radius: 12px; vertical-align: middle; color: #102; }
+.qstage.s1 { background: #3ddc84; } .qstage.s2 { background: #ffd23f; } .qstage.s3 { background: #ff8a3d; } .qstage.s4 { background: #ff4d5e; color: #fff; }
+.tval.long { font-size: 72px; }

@@ -18,16 +18,27 @@
   },
   "likeGoal": {
     "names": [
-      "Löwen-Statue",
+      "Riesenrad",
+      "Bushaltestelle",
+      "Lampen",
+      "Feuerwerk",
+      "Spielplatz",
       "Springbrunnen",
       "Leuchtturm",
-      "Goldener Löwe"
+      "Löwen-Statue"
     ],
-    "target": 10000
+    "target": 5000
+  },
+  "generator": {
+    "everyLikes": 20000,
+    "intervalSeconds": 10,
+    "bonusSeconds": 2
   },
   "quiz": {
-    "everySeconds": 70,
-    "answerSeconds": 20,
+    "everySeconds": 40,
+    "answerSeconds": 5,
+    "graceSeconds": 2,
+    "harderEvery": 10,
     "pointsCorrect": 10,
     "pointsFirst": 0,
     "timeCorrectSeconds": 0.2,
@@ -37,6 +48,12 @@
   "likesPerBuildPoint": 50,
   "levels": {
     "pointsPerLevel": 100,
+    "firstSteps": [
+      10,
+      30,
+      60,
+      100
+    ],
     "bonusEveryLevels": 1,
     "bonusSecondsPerLevel": 1
   },
