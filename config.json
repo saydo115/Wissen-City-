@@ -2,7 +2,8 @@
   "tiktokUsername": "DEIN_TIKTOK_NAME",
   "port": 8080,
   "cityName": "Wissens-City",
-  "roundMinutes": 10,
+  "endless": true,
+  "roundMinutes": 20,
   "keepTop": 5,
   "keepTopFactor": 0.5,
   "timerBonus": {
@@ -69,6 +70,12 @@
   "share": {
     "bonusPoints": 10,
     "maxPerUserPerRound": 3
+  },
+  "welcome": {
+    "enabled": true,
+    "collectSeconds": 3,
+    "maxNames": 3,
+    "speak": true
   },
   "happyHour": {
     "multiplier": 2,

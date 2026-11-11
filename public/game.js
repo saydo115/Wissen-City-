@@ -7,7 +7,8 @@ import { QUESTIONS } from './questions.js';
 const CFG = await fetch('/config.json').then(r => r.json()).catch(() => ({}));
 const C = {
   cityName: CFG.cityName || 'Wissens-City',
-  roundMinutes: CFG.roundMinutes || 10,
+  endless: CFG.endless ?? true,                    // true = the city is never reset (no timer) – good for the start
+  roundMinutes: CFG.roundMinutes || 20,
   keepTop: CFG.keepTop ?? 5,                       // the best N houses survive a new city …
   keepTopFactor: CFG.keepTopFactor ?? 0.5,          // … but only with this share of their build points (0.5 = half)
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
@@ -24,6 +25,7 @@ const C = {
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
   happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [2, 2], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
   joinWords: (CFG.joinWords || ['haus', 'join', 'mitmachen']).map(s => s.toLowerCase()),
+  welcome: Object.assign({ enabled: true, collectSeconds: 3, maxNames: 3, speak: true }, CFG.welcome || {}),
 };
 const $ = id => document.getElementById(id);
 const fmt = n => Math.floor(n).toLocaleString('de-DE');
@@ -32,6 +34,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const hash = s => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 const DEMO = new URLSearchParams(location.search).has('demo');
 $('cityName').textContent = C.cityName;
+if (C.endless) document.querySelector('.timer .ttitle').textContent = '🏙️ STADT BESTEHT SEIT';
 
 // stage scaling (1080x1920 stage fitted into any window)
 function fit() {
@@ -74,6 +77,7 @@ const state = {
   roundEnd: Date.now() + C.roundMinutes * 60000,
   lastGifts: [], built: [],      // community buildings
   happyUntil: 0,                 // Happy Hour end (timestamp)
+  cityStart: Date.now(),         // when this city was founded (shown in endless mode)
 };
 
 // =====================================================================================
@@ -448,7 +452,7 @@ function addBP(pl, amount) {
   if (lv !== pl.level) {
     // level bonus for the whole city: reaching level N adds N seconds (Level 9 = +9 s, Level 10 = +10 s …)
     let bonus = 0; const every = C.levels.bonusEveryLevels;
-    for (let m = Math.floor(before / every) + 1; m <= Math.floor(lv / every); m++) bonus += m * every * C.levels.bonusSecondsPerLevel;
+    if (!C.endless) for (let m = Math.floor(before / every) + 1; m <= Math.floor(lv / every); m++) bonus += m * every * C.levels.bonusSecondsPerLevel;
     placeHouse(pl, lv, { bonus });
     if (bonus > 0) {
       state.roundEnd += bonus * 1000;
@@ -528,6 +532,7 @@ function handle(ev) {
       const unitPrice = ev.unit || Math.max(1, Math.round((ev.coins || 1) / (ev.count || 1)));
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar, unitPrice < C.mentions.minCoinsPerGift);
       const coins = ev.coins || 1;
+      if (unitPrice >= C.voice.minCoinsPerGift) sayThanks(pl.nick, ev.giftName, ev.count || 1, coins);   // thank first, then build
       addBP(pl, coins * mult());
       if (pl.plot) { focusHouse(pl); burst(new THREE.Vector3(pl.plot.x, (pl.top || 4) + 1, pl.plot.z), 0xff5aa0, Math.min(40, 6 + coins * 2), 7, 1); }
       state.coins += coins;
@@ -543,7 +548,6 @@ function handle(ev) {
         state.lastGifts.unshift({ nick: pl.nick, gift: ev.giftName, count: ev.count, bp: coins, img: ev.giftImage || '' });
         state.lastGifts.length = Math.min(state.lastGifts.length, 3);
       }
-      if (unit >= C.voice.minCoinsPerGift) sayThanks(pl.nick, ev.giftName, ev.count || 1, coins);
       if (mention) toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet${happyOn() ? ' · <b>x' + C.happy.multiplier + '</b> 🎉' : ''}`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
       if (coins >= C.happy.triggerCoins) startHappy(C.happy.triggerMinutes, pl.nick, coins >= C.bigGifts.megaFrom ? 3700 : 0);
       if (coins >= C.bigGifts.megaFrom) megaGift(pl, ev, coins);
@@ -556,23 +560,27 @@ function handle(ev) {
     }
     case 'follow': {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
+      say(pick([`Danke fürs Folgen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Folgen! Willkommen in der Stadt!`]), 'follow');
       if (C.follow.bonusPoints) addBP(pl, C.follow.bonusPoints);
       shout(`❤️ Danke fürs Folgen, <b>${esc(pl.nick)}</b>!${C.follow.bonusPoints ? ` +${C.follow.bonusPoints} Baupunkte` : ' Willkommen in der Stadt 🏠'}`, 'pink', ev.avatar);
-      say(pick([`Danke fürs Folgen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Folgen! Willkommen in der Stadt!`]), 'follow');
       focusHouse(pl);
       sfx('follow');
       break;
     }
     case 'share': {
       const pl = ensurePlayer(ev.user, ev.nick, ev.avatar);
+      say(pick([`Danke fürs Teilen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Teilen!`]), 'share');
       if (pl.shares < C.share.maxPerUserPerRound) {
         pl.shares++; addBP(pl, C.share.bonusPoints * mult());
         shout(`🔁 <b>${esc(pl.nick)}</b> hat geteilt! +${C.share.bonusPoints} Baupunkte 🏗️`, 'teal', ev.avatar);
         if (pl.plot) burst(new THREE.Vector3(pl.plot.x, 6, pl.plot.z), 0x33d6d6, 40);
       } else shout(`🔁 Danke fürs Teilen, <b>${esc(pl.nick)}</b>!`, 'teal', ev.avatar);
-      say(pick([`Danke fürs Teilen, ${speakName(pl.nick)}!`, `${speakName(pl.nick)}, danke fürs Teilen!`]), 'share');
       focusHouse(pl);
       sfx('share');
+      break;
+    }
+    case 'member': {                                 // someone joined the LIVE -> greet them
+      welcomeViewer(ev);
       break;
     }
     case 'like': {
@@ -584,6 +592,31 @@ function handle(ev) {
     }
   }
 }
+// =====================================================================================
+// Welcome new viewers (good for small streams). Joins are collected for a few seconds and
+// greeted together ("Hallo Lisa, Tom und Mia!"), everybody only once per stream.
+// =====================================================================================
+const welcome = { seen: new Set(), pending: [], timer: null };
+function welcomeViewer(ev) {
+  if (!C.welcome.enabled || !ev.user || welcome.seen.has(ev.user)) return;
+  welcome.seen.add(ev.user);
+  welcome.pending.push(ev);
+  if (!welcome.timer) welcome.timer = setTimeout(flushWelcome, C.welcome.collectSeconds * 1000);
+}
+function flushWelcome() {
+  welcome.timer = null;
+  if (quizBusy()) { welcome.timer = setTimeout(flushWelcome, 1000); return; }   // greet after the quiz
+  const list = welcome.pending.splice(0); if (!list.length) return;
+  const shown = list.slice(0, C.welcome.maxNames), more = list.length - shown.length;
+  const join = arr => arr.length > 1 ? arr.slice(0, -1).join(', ') + ' und ' + arr[arr.length - 1] : arr[0];
+  toast(`👋 Willkommen <b>${shown.map(v => esc(v.nick)).join('</b>, <b>')}</b>${more > 0 ? ` +${more}` : ''}! Schreib <b>„Haus“</b> 🏡`, '', shown.length === 1 ? shown[0].avatar : '');
+  if (!C.welcome.speak) return;
+  const names = join(shown.map(v => speakName(v.nick))) + (more > 0 ? ` und ${more} weitere` : '');
+  const hint = state.players.size < 5 || Math.random() < .5;     // remind new viewers how to join
+  say(pick([`Hallo ${names}, willkommen im Live!`, `Hey ${names}! Schön, dass ihr da seid!`.replace('ihr da seid', list.length > 1 ? 'ihr da seid' : 'du da bist'), `Willkommen ${names}!`])
+    + (hint ? ' Schreib Haus in den Chat und bau mit!' : ''), 'welcome');
+}
+
 // =====================================================================================
 // Happy Hour
 // =====================================================================================
@@ -633,7 +666,7 @@ function updateHappy(t) {
 // =====================================================================================
 const speech = { voice: null, queue: [], later: [], busy: false, unlocked: false };
 // importance of spoken sentences: the most important waiting sentence is spoken next
-const RANK = { level: 0, gift: 1, follow: 2, share: 2, house: 2, goal: 3, quiz: 4 };
+const RANK = { level: 0, gift: 1, house: 1.5, welcome: 2, follow: 2, share: 2, biggift: 3, goal: 3, quiz: 4 };
 // Voice: 1. the one chosen in the test panel (saved in the browser), 2. config voice.voiceName,
 // 3. the first available of voice.preferVoices. Best free voices: Microsoft Edge "… Online (Natural)" (Seraphina, Florian, Katja, Conrad).
 const germanVoices = () => speechSynthesis.getVoices().filter(v => /^de(-|_|$)/i.test(v.lang) && !/undefined/i.test(v.name));
@@ -671,7 +704,7 @@ function sayThanks(nick, gift, count, coins) {
   else if (coins >= 100) text = pick([`Wahnsinn, ${n}! Vielen Dank für ${what}!`, `${n}, du bist super! Danke für ${what}!`]);
   else if (coins >= 30) text = pick([`Wow, danke ${n} für ${what}! Dein Haus wächst!`, `Danke dir, ${n}, für ${what}!`]);
   else text = pick([`Danke, ${n}!`, `Lieben Dank, ${n}!`, `Danke dir, ${n}, das ist lieb!`]);
-  say(text, 'gift');
+  say(text, coins >= 100 ? 'biggift' : 'gift');      // big gifts (≥ 100 coins) are thanked before everything else except quiz/goals
 }
 // speak any sentence (follow, share, level, goals …) – queued so nothing overlaps
 function say(text, kind = '') {
@@ -746,7 +779,7 @@ function checkGoals() {
     const list = n.length > 1 ? n.slice(0, -1).join(', ') + ' und ' + n[n.length - 1] : n[0];
     say(`${kind === 'coin' ? 'Coin' : 'Like'}-Ziel${n.length > 1 ? 'e' : ''} geschafft! Neu in der Stadt: ${list}!`, 'goal');
   }
-  while ((state.generators || 0) < gens) addGenerator();
+  if (!C.endless) while ((state.generators || 0) < gens) addGenerator();
 }
 
 // ---------- community buildings on the central plaza ----------
@@ -958,7 +991,8 @@ function updateGenerators() {
 const quiz = { active: false, closing: false, next: performance.now() + C.quiz.firstAfterSeconds * 1000, q: null, answers: new Map(), first: null, end: 0, asked: 0 };
 // difficulty: every `harderEvery` questions of a city the quiz gets one stage harder (1 = easy … 4 = very hard)
 const MAX_STAGE = Math.max(...QUESTIONS.map(q => q.d || 1));
-const quizStage = () => Math.min(MAX_STAGE, 1 + Math.floor(quiz.asked / Math.max(1, C.quiz.harderEvery)));
+// endless mode: after the hardest stage the quiz starts again at stage 1 (otherwise only the hardest questions would be left)
+const quizStage = () => { const n = Math.floor(quiz.asked / Math.max(1, C.quiz.harderEvery)); return C.endless ? 1 + n % MAX_STAGE : Math.min(MAX_STAGE, 1 + n); };
 const STAGE_NAME = ['', 'leicht', 'mittel', 'schwer', 'sehr schwer'];
 // Questions are drawn per stage from a deck that is saved in the browser:
 // no question repeats until ALL questions of that stage were asked – even across reloads, new cities and new streams.
@@ -1025,7 +1059,7 @@ function endQuiz() {
   // round timer: every correct answer +0.2 s, every wrong answer −0.5 s (never below minSecondsLeft)
   const wrongN = quiz.answers.size - right.length;
   const delta = right.length * C.quiz.timeCorrectSeconds - wrongN * C.quiz.timeWrongSeconds;
-  if (quiz.answers.size) {
+  if (quiz.answers.size && !C.endless) {
     const minEnd = Date.now() + C.quiz.minSecondsLeft * 1000;
     const before = state.roundEnd;
     state.roundEnd = delta < 0 ? Math.max(Math.min(before, minEnd), before + delta * 1000) : before + delta * 1000;
@@ -1038,10 +1072,15 @@ function endQuiz() {
   sfx(right.length ? 'right' : 'wrong');
   setTimeout(() => { if (!quiz.active) { $('quiz').classList.add('hidden'); $('howto').classList.remove('hidden'); } }, 6000);
   // after every `harderEvery` questions: announce the next stage
-  if (quiz.asked % C.quiz.harderEvery === 0 && quizStage() > quiz.stage) {
+  if (quiz.asked % C.quiz.harderEvery === 0 && quizStage() !== quiz.stage) {
     const st = quizStage();
-    shout(`🧠 Quiz-<b>Stufe ${st}</b>: Ab jetzt wird es ${STAGE_NAME[st]}! 💪`, 'gold');
-    say(`Achtung! Quiz-Stufe ${st}. Jetzt wird es ${STAGE_NAME[st]}!`, 'quiz');
+    if (st > quiz.stage) {
+      shout(`🧠 Quiz-<b>Stufe ${st}</b>: Ab jetzt wird es ${STAGE_NAME[st]}! 💪`, 'gold');
+      say(`Achtung! Quiz-Stufe ${st}. Jetzt wird es ${STAGE_NAME[st]}!`, 'quiz');
+    } else {
+      shout(`🧠 Neue Quiz-Runde – wieder <b>Stufe 1</b>! 🍀`, 'teal');
+      say('Neue Quiz-Runde! Wir fangen wieder leicht an.', 'quiz');
+    }
   }
   releaseQuizSpeech();
 }
@@ -1067,7 +1106,7 @@ function renderHUD() {
   $('lastGifts').innerHTML = state.lastGifts.map(g => `<div class="entry"><span class="medal">${giftHtml(g.gift, g.img)}</span><span class="n">${esc(g.nick)}<small>${g.count > 1 ? g.count + '× ' : ''}${esc(g.gift)} · +${fmt(g.bp)} BP</small></span></div>`).join('')
     || '<div class="entry"><span class="n">Noch keine 🌹</span></div>';
   const gens = state.generators || 0;
-  $('timerSub').textContent = gens ? `⚡ Generator${gens > 1 ? ' ×' + gens : ''}: +${gens * C.generator.bonusSeconds} Sek. / ${C.generator.intervalSeconds} Sek.`
+  $('timerSub').textContent = C.endless ? '♾️ ohne Zeitlimit' : gens ? `⚡ Generator${gens > 1 ? ' ×' + gens : ''}: +${gens * C.generator.bonusSeconds} Sek. / ${C.generator.intervalSeconds} Sek.`
     : C.timerBonus.enabled ? `${C.timerBonus.coinsPerSecond} Coins = +1 Sek.` : 'Runde läuft';
   dirty = false;
 }
@@ -1102,7 +1141,8 @@ function nextBanner() {
   bannerTimer = setTimeout(nextBanner, it.kind === 'mega' || it.kind === 'happy' ? 3600 : 2600);
 }
 let bonusTimer = null;
-function timerBonus(text, bad = false) { const el = $('timerBonus'); el.textContent = text; el.classList.toggle('bad', bad); el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
+function timerBonus(text, bad = false) {
+  if (C.endless) return; const el = $('timerBonus'); el.textContent = text; el.classList.toggle('bad', bad); el.classList.add('show'); clearTimeout(bonusTimer); bonusTimer = setTimeout(() => el.classList.remove('show'), 2500); }
 
 // =====================================================================================
 // Round reset
@@ -1126,7 +1166,7 @@ function newCity() {
     lastTop = keep.map(p => p.id);                    // no "throne" shout-outs right after the restart
     for (const g of communityGroups) scene.remove(g); communityGroups.length = 0; state.built = [];
     Object.assign(state, { coins: 0, likes: 0, coinGoalIdx: 0, likeGoalIdx: 0, coinBase: 0, likeBase: 0,
-      coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0, generators: 0, genNext: 0 });
+      coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0, generators: 0, genNext: 0, cityStart: Date.now() });
     nextRandomHappy = Date.now() + randMinutes(C.happy.randomEveryMinutes);
     quiz.asked = 0;                                   // new city -> quiz starts easy again
     state.roundEnd = Date.now() + C.roundMinutes * 60000; dirty = true;
@@ -1238,6 +1278,7 @@ const SIM = {
   likes5k: () => handle({ type: 'like', ...bot(), count: 5000 }),
   galaxy: () => handle({ type: 'gift', ...bot(), giftName: 'Galaxy', count: 1, coins: 1000 }),
   follow: () => handle({ type: 'follow', ...bot() }),
+  member: () => handle({ type: 'member', ...bot() }),
   happy: () => startHappy([1, 2, 3, 4][Math.floor(Math.random() * 4)]),
   share: () => handle({ type: 'share', ...bot() }),
   quiz: () => { if (!quiz.active) startQuiz(); },
@@ -1274,14 +1315,15 @@ function save() {
     localStorage.setItem('wissenscity', JSON.stringify({
       players: [...state.players.values()].map(p => ({ id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes })),
       coins: state.coins, likes: state.likes, coinGoalIdx: state.coinGoalIdx, likeGoalIdx: state.likeGoalIdx,
-      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, happyUntil: state.happyUntil, built: state.built, generators: state.generators || 0, savedAt: Date.now(),
+      coinTarget: state.coinTarget, likeTarget: state.likeTarget, coinBase: state.coinBase, likeBase: state.likeBase, roundEnd: state.roundEnd, lastGifts: state.lastGifts, happyUntil: state.happyUntil, cityStart: state.cityStart, built: state.built, generators: state.generators || 0, savedAt: Date.now(),
     }));
   } catch { /* storage not available */ }
 }
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem('wissenscity') || 'null');
-    if (!s || Date.now() - s.savedAt > 6 * 3600e3 || s.roundEnd < Date.now()) return;
+    if (!s || Date.now() - s.savedAt > 6 * 3600e3 || (!C.endless && s.roundEnd < Date.now())) return;
+    if (s.cityStart) state.cityStart = s.cityStart;
     Object.assign(state, { coins: s.coins, likes: s.likes, coinGoalIdx: s.coinGoalIdx, likeGoalIdx: s.likeGoalIdx, coinTarget: s.coinTarget, likeTarget: s.likeTarget, coinBase: s.coinBase || 0, likeBase: s.likeBase || 0, roundEnd: s.roundEnd, lastGifts: s.lastGifts || [], happyUntil: s.happyUntil || 0 });
     for (const p of s.players) {
       const pl = { id: p.id, nick: p.nick, avatar: p.avatar, bp: p.bp, likes: p.likes || 0, level: -1, plot: null };
@@ -1322,12 +1364,13 @@ function loop(t) {
   if (!quiz.active && t > quiz.next) startQuiz();
   if (quiz.active && !quiz.closing) { const left = Math.max(0, Math.ceil((quiz.end - t) / 1000)); $('qTimer').textContent = left; if (t >= quiz.end) closeQuiz(); }
   if (quiz.closing && t >= quiz.end + C.quiz.graceSeconds * 1000) endQuiz();
-  // round timer
-  const rest = Math.max(0, state.roundEnd - Date.now());
+  // round timer (endless mode: no reset – the panel shows how long the city has existed)
+  if (C.endless) state.roundEnd = Date.now() + C.roundMinutes * 60000;
+  const rest = C.endless ? Date.now() - (state.cityStart || Date.now()) : Math.max(0, state.roundEnd - Date.now());
   const hh = Math.floor(rest / 3600000), mm = Math.floor(rest / 60000) % 60, ss = String(Math.floor(rest / 1000) % 60).padStart(2, '0');
   $('timer').textContent = hh ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
   $('timer').classList.toggle('long', hh > 0);
-  if (rest <= 0 && !newCity.pending) { newCity.pending = true; newCity(); setTimeout(() => newCity.pending = false, 4000); }
+  if (!C.endless && rest <= 0 && !newCity.pending) { newCity.pending = true; newCity(); setTimeout(() => newCity.pending = false, 4000); }
   updateHappy(t);
   updateGenerators();
   for (const g of communityGroups) g.userData.tick?.(t, dt);

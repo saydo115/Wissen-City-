@@ -11,6 +11,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | ❤️ schickt **Likes** | **alle 5.000 Likes** wird etwas gebaut, das die Stadt braucht: Riesenrad → Bushaltestelle → Lampen → Feuerwerk → Spielplatz → Springbrunnen → Leuchtturm → Löwen-Statue (+ alle 50 Likes 1 Baupunkt) |
 | ⚡ **alle 20.000 Likes** | ein **Zeit-Generator**: gibt alle 10 Sekunden **+2 Sekunden** Zeit. Mehrere Generatoren zählen zusammen (2 Generatoren = +4 Sek. alle 10 Sek.) |
 | 🪙 alle Coins zusammen | füllen das Coin-Ziel (Stadion, Riesenrad …) mit Feuerwerk |
+| 🚪 **kommt in den LIVE** | wird begrüßt: „Hallo Lisa, willkommen im Live! Schreib Haus in den Chat und bau mit!“ – jeder nur einmal pro Stream; kommen mehrere gleichzeitig, werden sie zusammen begrüßt (bis zu 3 Namen + „und 5 weitere“) |
 | ➕ **folgt** dir | große Einblendung „❤️ Danke fürs Folgen, **Name**!“ + bekommt ein Grundstück |
 | 🔁 **teilt** den LIVE | „🔁 **Name** hat geteilt! +10 Baupunkte“ (max. 3× pro Person und Runde) |
 | 🎁 Geschenk ab **2 Coins** (alles außer Rose) | Einblendung mit Namen + **gesprochenes Dankeschön** („Danke, Lisa!“ … bei großen Geschenken „Unglaublich! Lisa, tausend Dank für Galaxy!“) |
@@ -19,6 +20,8 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 🌌 Geschenk ab **1.000 Coins** (z. B. Galaxy) | Mega-Effekt: Feuerwerk über der ganzen Stadt, Lichtblitz, Riesen-Banner „GALAXY! von **Name** – DANKE!“ **+ startet 4 Minuten Happy Hour** |
 | 👑 **Top 3 ändert sich** | freundliche Ansage, z. B. „👑 **Lisa** erobert den Thron! **Tom** wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄“ |
 | 🎉 **Happy Hour** | kommt **alle 2 Minuten** (2 Minuten Pause nach jeder Happy Hour) und dauert zufällig 1, 2, 3 oder 4 Minuten: **alle Baupunkte x2** (Geschenke, Quiz, Teilen), Party-Lichter und Countdown |
+
+> **Endlos-Modus (Standard):** Die Stadt bleibt immer bestehen – kein Timer, kein Neustart. Statt der Restzeit zeigt das Feld, wie lange die Stadt schon besteht. Zeit-Boni und Generatoren gibt es dann nicht, Like-Ziele schon. Das Quiz fängt nach Stufe 4 wieder bei Stufe 1 an. Mit `"endless": false` in `config.json` gelten die Runden-Regeln unten.
 
 **Alle 40 Sekunden** kommt eine Quizfrage. **Alle 10 Fragen wird das Quiz eine Stufe schwerer** (Stufe 1 leicht → 2 mittel → 3 schwer → 4 sehr schwer, in einer neuen Stadt geht es wieder bei Stufe 1 los). Während das Quiz läuft, hat es **Vorrang**: Danke-Ansagen für Geschenke, Folgen und Teilen werden dann nicht vorgelesen (Ziel-Ansagen kommen danach). Am Ende sagt die Stimme die richtige Antwort und wie viele richtig lagen. Wenn die Zeit abläuft, werden die Top 3 gefeiert und danach **alles gelöscht** (Häuser, Ziele, Bauwerke) – eine **neue Stadt** beginnt. **Nur die Top-5-Häuser bleiben stehen** – aber mit **halben Baupunkten** (das Level passt sich an), damit Neue eine Chance haben. Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
 
@@ -59,7 +62,8 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 
 | Einstellung | Bedeutung |
 |---|---|
-| `roundMinutes` | Länge einer Runde bis zur neuen Stadt (Standard 10 Minuten, plus Bonuszeit) |
+| `endless` | `true` (Standard) = **Endlos-Stadt**: kein Timer, die Stadt wird nie gelöscht – ideal am Anfang. `false` = Runden mit Timer und Neustart |
+| `roundMinutes` | Länge einer Runde bis zur neuen Stadt (Standard 20 Minuten, plus Bonuszeit) |
 | `keepTop` | so viele der besten Häuser bleiben bei einer neuen Stadt stehen (Standard 5, `0` = alles neu) |
 | `keepTopFactor` | wie viel ihrer Baupunkte die Top-Häuser behalten (Standard `0.5` = die Hälfte, `1` = alles) |
 | `timerBonus` | Zeitverlängerung durch Coins an/aus (`"enabled": false`) |
@@ -67,6 +71,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `generator` | Zeit-Generator: `everyLikes` (20.000), `intervalSeconds` (10), `bonusSeconds` (2) |
 | `quiz` | Abstand der Fragen (`everySeconds`, 40), Antwortzeit (`answerSeconds`, 5), Puffer für späte Antworten (`graceSeconds`, 2), alle wie viele Fragen es schwerer wird (`harderEvery`, 10), Punkte, Zeit pro richtiger/falscher Antwort (`timeCorrectSeconds`, `timeWrongSeconds`), Mindest-Restzeit (`minSecondsLeft`) |
 | `bigGifts` | ab wie vielen Coins Feuerwerk (`fireworksFrom`) bzw. der Mega-Effekt (`megaFrom`) kommt |
+| `welcome` | Begrüßung neuer Zuschauer: an/aus (`enabled`), nur Einblendung ohne Stimme (`speak: false`), Sammelzeit (`collectSeconds`), max. Namen pro Ansage (`maxNames`) |
 | `follow.bonusPoints` | Baupunkte fürs Folgen (Standard 0 = nur Dank + Grundstück) |
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
 | `levels` | schnelle erste Level (`firstSteps`, Standard 10/30/60/100), danach Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus pro Level (`bonusSecondsPerLevel`, Standard 1 → Level × 1 Sek.) |
