@@ -8,6 +8,7 @@ const CFG = await fetch('/config.json').then(r => r.json()).catch(() => ({}));
 const C = {
   cityName: CFG.cityName || 'Wissens-City',
   roundMinutes: CFG.roundMinutes || 10,
+  keepTop: CFG.keepTop ?? 5,                       // the best N houses survive a new city
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Riesenrad', 'Bushaltestelle', 'Lampen', 'Feuerwerk'], target: 5000 },
@@ -1106,13 +1107,17 @@ function timerBonus(text, bad = false) { const el = $('timerBonus'); el.textCont
 // Round reset
 // =====================================================================================
 function newCity() {
-  const top = [...state.players.values()].sort((a, b) => b.bp - a.bp).slice(0, 3);
+  const top = [...state.players.values()].filter(p => p.bp > 0).sort((a, b) => b.bp - a.bp).slice(0, 3);
   banner('NEUE STADT!', top.length ? `🏆 ${top.map(p => p.nick).join(' · ')}` : 'Bau mit!');
   fireworks(plazaCenter, 10);
   setTimeout(() => {
-    // complete fresh start: houses, players, goals, community buildings, Happy Hour, lists
-    for (const pl of state.players.values()) removeHouse(pl);
-    state.players.clear(); state.lastGifts = []; lastTop = [];
+    // fresh start: houses, players, goals, community buildings, Happy Hour, lists –
+    // only the best `keepTop` houses (default 5) stay with their level and build points
+    const keep = [...state.players.values()].filter(p => p.bp > 0 && p.plot).sort((a, b) => b.bp - a.bp).slice(0, Math.max(0, C.keepTop));
+    for (const pl of state.players.values()) if (!keep.includes(pl)) removeHouse(pl);
+    state.players.clear(); state.lastGifts = [];
+    for (const pl of keep) { pl.shares = 0; pl.likes = 0; state.players.set(pl.id, pl); }
+    lastTop = keep.map(p => p.id);                    // no "throne" shout-outs right after the restart
     for (const g of communityGroups) scene.remove(g); communityGroups.length = 0; state.built = [];
     Object.assign(state, { coins: 0, likes: 0, coinGoalIdx: 0, likeGoalIdx: 0, coinBase: 0, likeBase: 0,
       coinTarget: C.coinGoal.target, likeTarget: C.likeGoal.target, timerCarry: 0, happyUntil: 0, generators: 0, genNext: 0 });
@@ -1120,6 +1125,14 @@ function newCity() {
     quiz.asked = 0;                                   // new city -> quiz starts easy again
     state.roundEnd = Date.now() + C.roundMinutes * 60000; dirty = true;
     save();
+    if (keep.length) {
+      const names = keep.map(p => speakName(p.nick));
+      const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' und ' + names[names.length - 1] : names[0];
+      shout(`👑 Die Häuser von <b>${keep.map(p => esc(p.nick)).join('</b>, <b>')}</b> bleiben stehen – die Besten der letzten Stadt! 🏆`, 'gold');
+      say(`Die Häuser von ${list} bleiben stehen!`, 'goal');
+      for (const pl of keep) burst(new THREE.Vector3(pl.plot.x, (pl.top || 4) + 3, pl.plot.z), 0xffd23f, 60);
+      if (keep[0]) focusHouse(keep[0], true);
+    }
     shout('🏗️ Eine neue Stadt beginnt! Schreib <b>„Haus“</b> und bau mit! 🦁', 'teal');
   }, 2500);
 }
