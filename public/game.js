@@ -1212,15 +1212,35 @@ function newCity() {
 // Each shot is shown at least MIN ms; meanwhile only the newest wish is kept (+ important ones).
 let focus = null; const focusQueue = [];
 const FOCUS_MIN = 1900, FOCUS_MAX = 4200;
+// city tour when nothing happens: after IDLE_AFTER ms without events the camera visits houses / buildings
+const IDLE_AFTER = 8000, IDLE_SHOT = 7000, IDLE_GAP = 9000;
+let lastActivity = performance.now(), nextIdle = 0, idleTurn = 0;
 function focusOn(pos, height, important = false, opts = {}) {
-  const it = { pos: pos.clone(), h: height, important, ...opts };   // opts: dist, lookY (custom shot, e.g. for rockets)
+  const it = { pos: pos.clone(), h: height, important, idle: false, ...opts };   // opts: dist, lookY (custom shot, e.g. for rockets), idle (city tour)
   const now = performance.now();
-  if (focus && focus.pos.distanceTo(it.pos) < .1) { focus.until = Math.max(focus.until, now + FOCUS_MAX); focus.h = Math.max(focus.h, height); Object.assign(focus, opts); return; }
-  if (!focus || now >= focus.min) { startFocus(it); return; }
+  if (!it.idle) lastActivity = now;
+  if (focus && focus.pos.distanceTo(it.pos) < .1 && now < focus.until) { focus.until = Math.max(focus.until, now + FOCUS_MAX); focus.h = Math.max(focus.h, height); Object.assign(focus, { idle: it.idle }, opts); return; }
+  if (!focus || now >= focus.min || (focus.idle && !it.idle)) { startFocus(it); return; }   // real events interrupt the tour at once
   for (let i = focusQueue.length - 1; i >= 0; i--) if (!focusQueue[i].important || focusQueue[i].pos.distanceTo(it.pos) < .1) focusQueue.splice(i, 1);
   focusQueue.push(it); if (focusQueue.length > 3) focusQueue.shift();
 }
-function startFocus(it) { const now = performance.now(); focus = { ...it, min: now + FOCUS_MIN, until: now + FOCUS_MAX, ang: Math.random() * .8 - .4 }; }
+function startFocus(it) { const now = performance.now(); focus = { ...it, min: now + (it.idle ? IDLE_SHOT : FOCUS_MIN), until: now + (it.idle ? IDLE_SHOT : FOCUS_MAX), ang: Math.random() * .8 - .4 }; }
+function idleTour(now) {
+  if (focus && now < focus.until) return;
+  if (now - lastActivity < IDLE_AFTER || now < nextIdle) return;
+  const houses = [...state.players.values()].filter(p => p.plot).sort((a, b) => b.bp - a.bp);
+  const turn = idleTurn++ % 3;
+  let target = null;
+  if (turn === 2 && communityGroups.length) {                                // a community building (Riesenrad, Bus …)
+    const g = communityGroups[Math.floor(Math.random() * communityGroups.length)];
+    target = { pos: g.position, h: 6 };
+  } else if (houses.length) {                                                  // a top house, then a random one
+    const pl = turn === 0 ? houses[Math.floor(idleTurn / 3) % Math.min(5, houses.length)] : houses[Math.floor(Math.random() * houses.length)];
+    target = { pos: new THREE.Vector3(pl.plot.x, 0, pl.plot.z), h: Math.min(pl.top || 4, 50) };
+  }
+  nextIdle = now + IDLE_SHOT + IDLE_GAP;                                       // between two tour stops: the whole city from above
+  if (target) focusOn(target.pos, target.h, false, { idle: true, dist: 20 + target.h * 1.2 });
+}
 const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3();
 function updateCamera(t, dt) {
   const ang = t * 0.00004;
@@ -1228,13 +1248,14 @@ function updateCamera(t, dt) {
   const look = new THREE.Vector3(0, 0, 8);
   const now = performance.now();
   if (focus && now >= focus.min && focusQueue.length) startFocus(focusQueue.shift());
+  idleTour(now);
   if (focus && now < focus.until) {
     const h = focus.h, dist = focus.dist ?? 13 + h * 1.1, a = focus.ang + (now - focus.min) * 0.00006;   // close-up, slowly circling
     const ly = focus.lookY ?? h * .45 + 2.5;
     ideal.set(focus.pos.x + Math.sin(a) * dist * .55, ly + 4.5 + dist * .45 - (focus.lookY != null ? ly * .55 : 0), focus.pos.z + Math.cos(a) * dist);
     look.set(focus.pos.x, ly, focus.pos.z);   // house sits a bit below the banners
   }
-  const k = 1 - Math.pow(.004, dt / 1000);
+  const k = 1 - Math.pow(focus?.idle ? .25 : .004, dt / 1000);              // the city tour glides slowly, events snap quickly
   camPos.lerp(ideal, k); camTarget.lerp(look, k);
   camera.position.copy(camPos); camera.lookAt(camTarget);
 }
