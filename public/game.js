@@ -8,7 +8,8 @@ const CFG = await fetch('/config.json').then(r => r.json()).catch(() => ({}));
 const C = {
   cityName: CFG.cityName || 'Wissens-City',
   roundMinutes: CFG.roundMinutes || 10,
-  keepTop: CFG.keepTop ?? 5,                       // the best N houses survive a new city
+  keepTop: CFG.keepTop ?? 5,                       // the best N houses survive a new city …
+  keepTopFactor: CFG.keepTopFactor ?? 0.5,          // … but only with this share of their build points (0.5 = half)
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Riesenrad', 'Bushaltestelle', 'Lampen', 'Feuerwerk'], target: 5000 },
@@ -1116,7 +1117,12 @@ function newCity() {
     const keep = [...state.players.values()].filter(p => p.bp > 0 && p.plot).sort((a, b) => b.bp - a.bp).slice(0, Math.max(0, C.keepTop));
     for (const pl of state.players.values()) if (!keep.includes(pl)) removeHouse(pl);
     state.players.clear(); state.lastGifts = [];
-    for (const pl of keep) { pl.shares = 0; pl.likes = 0; state.players.set(pl.id, pl); }
+    for (const pl of keep) {
+      pl.shares = 0; pl.likes = 0; state.players.set(pl.id, pl);
+      // their success is halved: fewer build points -> lower level -> the house shrinks a bit
+      pl.bp = Math.floor(pl.bp * C.keepTopFactor);
+      placeHouse(pl, levelFor(pl.bp), false);
+    }
     lastTop = keep.map(p => p.id);                    // no "throne" shout-outs right after the restart
     for (const g of communityGroups) scene.remove(g); communityGroups.length = 0; state.built = [];
     Object.assign(state, { coins: 0, likes: 0, coinGoalIdx: 0, likeGoalIdx: 0, coinBase: 0, likeBase: 0,
@@ -1128,8 +1134,8 @@ function newCity() {
     if (keep.length) {
       const names = keep.map(p => speakName(p.nick));
       const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' und ' + names[names.length - 1] : names[0];
-      shout(`👑 Die Häuser von <b>${keep.map(p => esc(p.nick)).join('</b>, <b>')}</b> bleiben stehen – die Besten der letzten Stadt! 🏆`, 'gold');
-      say(`Die Häuser von ${list} bleiben stehen!`, 'goal');
+      shout(`👑 Die Häuser von <b>${keep.map(p => esc(p.nick)).join('</b>, <b>')}</b> bleiben stehen – die Besten der letzten Stadt! 🏆${C.keepTopFactor < 1 ? ` (mit ${Math.round(C.keepTopFactor * 100)} % ihrer Punkte)` : ''}`, 'gold');
+      say(`Die Häuser von ${list} bleiben stehen${C.keepTopFactor < 1 ? ', mit halben Punkten' : ''}!`.replace('halben', C.keepTopFactor === .5 ? 'halben' : 'weniger'), 'goal');
       for (const pl of keep) burst(new THREE.Vector3(pl.plot.x, (pl.top || 4) + 3, pl.plot.z), 0xffd23f, 60);
       if (keep[0]) focusHouse(keep[0], true);
     }
