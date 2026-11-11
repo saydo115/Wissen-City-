@@ -4,6 +4,7 @@
   "cityName": "Wissens-City",
   "roundMinutes": 10,
   "keepTop": 5,
+  "keepTopFactor": 0.5,
   "timerBonus": {
     "enabled": true,
     "coinsPerSecond": 30

@@ -20,7 +20,7 @@ Ein interaktives TikTok-LIVE-Spiel: Deine Zuschauer bauen gemeinsam eine 3D-Stad
 | 👑 **Top 3 ändert sich** | freundliche Ansage, z. B. „👑 **Lisa** erobert den Thron! **Tom** wird ganz sanft vom Thron geschubst – Revanche gefällig? 😄“ |
 | 🎉 **Happy Hour** | kommt **alle 2 Minuten** (2 Minuten Pause nach jeder Happy Hour) und dauert zufällig 1, 2, 3 oder 4 Minuten: **alle Baupunkte x2** (Geschenke, Quiz, Teilen), Party-Lichter und Countdown |
 
-**Alle 40 Sekunden** kommt eine Quizfrage. **Alle 10 Fragen wird das Quiz eine Stufe schwerer** (Stufe 1 leicht → 2 mittel → 3 schwer → 4 sehr schwer, in einer neuen Stadt geht es wieder bei Stufe 1 los). Während das Quiz läuft, hat es **Vorrang**: Danke-Ansagen für Geschenke, Folgen und Teilen werden dann nicht vorgelesen (Ziel-Ansagen kommen danach). Am Ende sagt die Stimme die richtige Antwort und wie viele richtig lagen. Wenn die Zeit abläuft, werden die Top 3 gefeiert und danach **alles gelöscht** (Häuser, Ziele, Bauwerke) – eine **neue Stadt** beginnt. **Nur die Top-5-Häuser bleiben stehen** – mit Level und Baupunkten. Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
+**Alle 40 Sekunden** kommt eine Quizfrage. **Alle 10 Fragen wird das Quiz eine Stufe schwerer** (Stufe 1 leicht → 2 mittel → 3 schwer → 4 sehr schwer, in einer neuen Stadt geht es wieder bei Stufe 1 los). Während das Quiz läuft, hat es **Vorrang**: Danke-Ansagen für Geschenke, Folgen und Teilen werden dann nicht vorgelesen (Ziel-Ansagen kommen danach). Am Ende sagt die Stimme die richtige Antwort und wie viele richtig lagen. Wenn die Zeit abläuft, werden die Top 3 gefeiert und danach **alles gelöscht** (Häuser, Ziele, Bauwerke) – eine **neue Stadt** beginnt. **Nur die Top-5-Häuser bleiben stehen** – aber mit **halben Baupunkten** (das Level passt sich an), damit Neue eine Chance haben. Geschenke verlängern die Zeit (30 Coins = +1 Sekunde, auch viele kleine Geschenke zählen zusammen).
 
 ---
 
@@ -61,6 +61,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 |---|---|
 | `roundMinutes` | Länge einer Runde bis zur neuen Stadt (Standard 10 Minuten, plus Bonuszeit) |
 | `keepTop` | so viele der besten Häuser bleiben bei einer neuen Stadt stehen (Standard 5, `0` = alles neu) |
+| `keepTopFactor` | wie viel ihrer Baupunkte die Top-Häuser behalten (Standard `0.5` = die Hälfte, `1` = alles) |
 | `timerBonus` | Zeitverlängerung durch Coins an/aus (`"enabled": false`) |
 | `coinGoal` / `likeGoal` | Namen und Größe der Gemeinschafts-Ziele (Like-Ziel: `target` = alle wie viele Likes, Standard 5.000) |
 | `generator` | Zeit-Generator: `everyLikes` (20.000), `intervalSeconds` (10), `bonusSeconds` (2) |
