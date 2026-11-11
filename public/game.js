@@ -15,7 +15,7 @@ const C = {
   quiz: Object.assign({ everySeconds: 40, answerSeconds: 5, graceSeconds: 2, harderEvery: 10, firstAfterSeconds: 15, pointsCorrect: 10, pointsFirst: 0, timeCorrectSeconds: 0.2, timeWrongSeconds: 0.5, minSecondsLeft: 30 }, CFG.quiz || {}),
   likesPerBP: CFG.likesPerBuildPoint || 50,
   mentions: Object.assign({ minCoinsPerGift: 2 }, CFG.mentions || {}),
-  voice: Object.assign({ enabled: true, minCoinsPerGift: 2, rate: 1.05, pitch: 1, volume: 1, preferVoices: ['Natural', 'Online', 'Google', 'Katja', 'Conrad', 'Hedda', 'Stefan'] }, CFG.voice || {}),
+  voice: Object.assign({ enabled: true, minCoinsPerGift: 2, rate: 1.05, pitch: 1, volume: 1, voiceName: '', preferVoices: ['Seraphina', 'Florian', 'Katja Online', 'Conrad Online', 'Natural', 'Online', 'Google', 'Katja', 'Conrad', 'Hedda', 'Stefan'] }, CFG.voice || {}),
   levels: Object.assign({ pointsPerLevel: 100, firstSteps: [10, 30, 60, 100], bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
   bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
   follow: CFG.follow || { bonusPoints: 0 },
@@ -632,14 +632,31 @@ function updateHappy(t) {
 const speech = { voice: null, queue: [], later: [], busy: false, unlocked: false };
 // importance of spoken sentences: the most important waiting sentence is spoken next
 const RANK = { level: 0, gift: 1, follow: 2, share: 2, house: 2, goal: 3, quiz: 4 };
+// Voice: 1. the one chosen in the test panel (saved in the browser), 2. config voice.voiceName,
+// 3. the first available of voice.preferVoices. Best free voices: Microsoft Edge "… Online (Natural)" (Seraphina, Florian, Katja, Conrad).
+const germanVoices = () => speechSynthesis.getVoices().filter(v => /^de(-|_|$)/i.test(v.lang) && !/undefined/i.test(v.name));
 function pickVoice() {
   if (!('speechSynthesis' in window)) return;
-  const de = speechSynthesis.getVoices().filter(v => /^de(-|_|$)/i.test(v.lang));
-  for (const pref of C.voice.preferVoices) { const v = de.find(v => v.name.toLowerCase().includes(pref.toLowerCase())); if (v) { speech.voice = v; break; } }
+  const de = germanVoices(); let chosen = '';
+  try { chosen = localStorage.getItem('wissenscity_voice') || ''; } catch { }
+  speech.voice = null;
+  for (const pref of [chosen, C.voice.voiceName, ...C.voice.preferVoices].filter(Boolean)) {
+    const v = de.find(v => v.name === pref) || de.find(v => v.name.toLowerCase().includes(pref.toLowerCase()));
+    if (v) { speech.voice = v; break; }
+  }
   if (!speech.voice) speech.voice = de[0] || null;
   if (speech.voice) console.log('[Stimme]', speech.voice.name);
+  fillVoiceSelect();
+}
+function fillVoiceSelect() {
+  const sel = $('voiceSel'); if (!sel) return;
+  const de = germanVoices();
+  sel.innerHTML = de.length ? de.map(v => `<option value="${esc(v.name)}"${speech.voice && v.name === speech.voice.name ? ' selected' : ''}>${esc(v.name.replace(/^Microsoft /, '').replace(/ - German.*$/, ''))}</option>`).join('')
+    : '<option>Keine deutsche Stimme gefunden</option>';
 }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+$('voiceSel')?.addEventListener('change', e => { try { localStorage.setItem('wissenscity_voice', e.target.value); } catch { } pickVoice(); });
+$('voiceTest')?.addEventListener('click', () => { unlockAudio(); say('Danke fürs Folgen, Lisa! Willkommen in der Wissens-City!', 'quiz'); });
 // make usernames speakable: "lisa_mueller99" -> "lisa mueller"
 const speakName = n => (String(n).normalize('NFKC').replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/[_.\-]+/g, ' ').replace(/\s+/g, ' ').trim()).replace(/^(.*?)$/, m => m.replace(/\d+/g, '').replace(/\s+/g, ' ').trim() || m) || 'du';
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];

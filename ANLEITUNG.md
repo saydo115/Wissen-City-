@@ -49,7 +49,9 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 6. **Ton & Stimme aktivieren:** Beim Start erscheint ein gelber Knopf „🔊 Einmal hier klicken …“ – **einmal anklicken** (Browser erlauben Ton erst nach einem Klick). Der Knopf verschwindet dann.
 
 ## 🔊 Die Dankes-Stimme
-- Die Stimme kommt von deinem PC (Sprachausgabe des Browsers). **Am schönsten klingt sie in Microsoft Edge** – dort gibt es die natürlichen Stimmen „Katja“ und „Conrad“. In Chrome wird „Google Deutsch“ genutzt.
+- Die Stimme kommt von deinem PC (Sprachausgabe des Browsers). **Am schönsten klingt sie in Microsoft Edge** – dort gibt es kostenlose, sehr natürliche Online-Stimmen: **Seraphina** und **Katja** (weiblich), **Florian** und **Conrad** (männlich). `START.bat` und `TESTMODUS.bat` öffnen das Spiel deshalb automatisch in Edge. In Chrome klingt es roboterhafter.
+- **Stimme auswählen:** `TESTMODUS.bat` starten → im Test-Panel oben bei **🔊 Stimme** eine Stimme wählen → **Test** drücken. Die Auswahl merkt sich der Browser, sie gilt dann auch im LIVE. Alternativ fest in `config.json`: `"voiceName": "Seraphina"`.
+- Die Online-Stimmen brauchen Internet. Fällt eine weg, nimmt das Spiel automatisch die nächste deutsche Stimme.
 - Damit die Zuschauer die Stimme hören, muss **TikTok LIVE Studio den PC-Ton mit aufnehmen**: in LIVE Studio bei den Audio-Einstellungen den **Desktop-/System-Ton (Lautsprecher)** aktivieren. Bei OBS mit Browser-Quelle: „Audio über OBS steuern“ anhaken.
 - Lautstärke, Tempo und ab wie vielen Coins gedankt wird: in `config.json` unter `voice` (`volume`, `rate`, `minCoinsPerGift`). Ausschalten mit `"enabled": false`.
 
@@ -67,7 +69,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 | `share` | Baupunkte fürs Teilen und wie oft pro Person und Runde |
 | `levels` | schnelle erste Level (`firstSteps`, Standard 10/30/60/100), danach Punkte pro Level (`pointsPerLevel`, Standard 100) und Zeitbonus pro Level (`bonusSecondsPerLevel`, Standard 1 → Level × 1 Sek.) |
 | `mentions` | ab wie vielen Coins **pro Geschenk** jemand eingeblendet wird (`minCoinsPerGift`, Standard 2 = keine einzelnen Rosen) |
-| `voice` | gesprochener Dank: an/aus, ab wie vielen Coins, Lautstärke, Tempo, bevorzugte Stimmen |
+| `voice` | gesprochener Dank: an/aus, feste Stimme (`voiceName`, z. B. `"Seraphina"`), ab wie vielen Coins, Lautstärke, Tempo, bevorzugte Stimmen |
 | `happyHour` | Faktor (`multiplier`), wie oft (`randomEveryMinutes`), wie lange (`randomDurationMinutes`), ab wie vielen Coins sie ausgelöst wird (`triggerCoins`) und wie lange dann (`triggerMinutes`) |
 | `joinWords` | Wörter, mit denen man mitmachen kann |
 
