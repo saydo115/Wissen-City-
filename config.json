@@ -3,6 +3,7 @@
   "port": 8080,
   "cityName": "Wissens-City",
   "roundMinutes": 10,
+  "keepTop": 5,
   "timerBonus": {
     "enabled": true,
     "coinsPerSecond": 30
