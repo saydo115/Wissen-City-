@@ -7,7 +7,7 @@ import { QUESTIONS } from './questions.js';
 const CFG = await fetch('/config.json').then(r => r.json()).catch(() => ({}));
 const C = {
   cityName: CFG.cityName || 'Wissens-City',
-  roundMinutes: CFG.roundMinutes || 20,
+  roundMinutes: CFG.roundMinutes || 10,
   timerBonus: CFG.timerBonus || { enabled: true, coinsPerSecond: 30 },
   coinGoal: CFG.coinGoal || { names: ['Stadion'], target: 5000 },
   likeGoal: CFG.likeGoal || { names: ['Riesenrad', 'Bushaltestelle', 'Lampen', 'Feuerwerk'], target: 5000 },

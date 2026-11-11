@@ -2,7 +2,7 @@
   "tiktokUsername": "DEIN_TIKTOK_NAME",
   "port": 8080,
   "cityName": "Wissens-City",
-  "roundMinutes": 20,
+  "roundMinutes": 10,
   "timerBonus": {
     "enabled": true,
     "coinsPerSecond": 30

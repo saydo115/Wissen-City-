@@ -59,7 +59,7 @@ Damit kannst du Geschenke, Likes, Quiz-Antworten simulieren. Mit **„Auto-Demo�
 
 | Einstellung | Bedeutung |
 |---|---|
-| `roundMinutes` | Länge einer Runde bis zur neuen Stadt |
+| `roundMinutes` | Länge einer Runde bis zur neuen Stadt (Standard 10 Minuten, plus Bonuszeit) |
 | `timerBonus` | Zeitverlängerung durch Coins an/aus (`"enabled": false`) |
 | `coinGoal` / `likeGoal` | Namen und Größe der Gemeinschafts-Ziele (Like-Ziel: `target` = alle wie viele Likes, Standard 5.000) |
 | `generator` | Zeit-Generator: `everyLikes` (20.000), `intervalSeconds` (10), `bonusSeconds` (2) |
