@@ -20,7 +20,7 @@ const C = {
   mentions: Object.assign({ minCoinsPerGift: 2 }, CFG.mentions || {}),
   voice: Object.assign({ enabled: true, minCoinsPerGift: 2, rate: 1.05, pitch: 1, volume: 1, voiceName: '', preferVoices: ['Seraphina', 'Florian', 'Katja Online', 'Conrad Online', 'Natural', 'Online', 'Google', 'Katja', 'Conrad', 'Hedda', 'Stefan'] }, CFG.voice || {}),
   levels: Object.assign({ pointsPerLevel: 100, firstSteps: [10, 30, 60, 100], bonusEveryLevels: 1, bonusSecondsPerLevel: 1 }, CFG.levels || {}),
-  bigGifts: CFG.bigGifts || { fireworksFrom: 100, megaFrom: 1000 },
+  bigGifts: Object.assign({ fireworksFrom: 100, rocketFrom: 400, megaFrom: 1000 }, CFG.bigGifts || {}),
   follow: CFG.follow || { bonusPoints: 0 },
   share: CFG.share || { bonusPoints: 10, maxPerUserPerRound: 3 },
   happy: CFG.happyHour || { multiplier: 2, randomEveryMinutes: [2, 2], randomDurationMinutes: [1, 2, 3, 4], triggerCoins: 1000, triggerMinutes: 4 },
@@ -550,11 +550,11 @@ function handle(ev) {
       }
       if (mention) toast(`${giftHtml(ev.giftName, ev.giftImage)} <b>${esc(pl.nick)}</b> hat ${esc(ev.giftName)} gesendet${happyOn() ? ' · <b>x' + C.happy.multiplier + '</b> 🎉' : ''}`, ev.count > 1 ? `×${ev.count}` : '', ev.avatar);
       if (coins >= C.happy.triggerCoins) startHappy(C.happy.triggerMinutes, pl.nick, coins >= C.bigGifts.megaFrom ? 3700 : 0);
-      if (coins >= C.bigGifts.megaFrom) megaGift(pl, ev, coins);
-      else if (coins >= C.bigGifts.fireworksFrom) {
-        if (pl.plot) fireworks(new THREE.Vector3(pl.plot.x, 0, pl.plot.z).add(new THREE.Vector3(0, -15, 0)), 3);
-        shout(`🎆 <b>${esc(pl.nick)}</b> schickt ${giftHtml(ev.giftName, ev.giftImage)} ${esc(ev.giftName)}! Danke! 🦁`, 'gold');
-      }
+      // big gifts: no extra banner (TikTok shows the gift animation itself) – a rocket starts from the house instead
+      if (coins >= C.bigGifts.rocketFrom && pl.plot) {
+        const n = coins >= C.bigGifts.megaFrom ? 3 : 1;
+        for (let k = 0; k < n; k++) setTimeout(() => launchRocket(pl, k), k * 700);
+      } else if (coins >= C.bigGifts.fireworksFrom && pl.plot) fireworks(new THREE.Vector3(pl.plot.x, 0, pl.plot.z).add(new THREE.Vector3(0, -15, 0)), 3);
       checkGoals(); dirty = true; sfx('gift');
       break;
     }
@@ -700,8 +700,7 @@ function sayThanks(nick, gift, count, coins) {
   const n = speakName(nick), g = String(gift || 'das Geschenk');
   const what = count > 1 ? `${count} mal ${g}` : g;
   let text;
-  if (coins >= 1000) text = pick([`Unglaublich! ${n}, tausend Dank für ${what}! Du bist ein Held der Stadt!`, `Wow, ${n}! Vielen, vielen Dank für ${what}! Das ist der Wahnsinn!`]);
-  else if (coins >= 100) text = pick([`Wahnsinn, ${n}! Vielen Dank für ${what}!`, `${n}, du bist super! Danke für ${what}!`]);
+  if (coins >= 100) text = pick([`Danke, ${n}!`, `Vielen Dank, ${n}!`, `Danke dir, ${n}!`, `Wow, danke ${n}!`]);   // big gifts: just a short thank-you
   else if (coins >= 30) text = pick([`Wow, danke ${n} für ${what}! Dein Haus wächst!`, `Danke dir, ${n}, für ${what}!`]);
   else text = pick([`Danke, ${n}!`, `Lieben Dank, ${n}!`, `Danke dir, ${n}, das ist lieb!`]);
   say(text, coins >= 100 ? 'biggift' : 'gift');      // big gifts (≥ 100 coins) are thanked before everything else except quiz/goals
@@ -740,13 +739,36 @@ function nextSpeech() {
   setTimeout(done, 15000); // safety – only for THIS sentence
 }
 const giftHtml = (name, img) => img ? `<img class="gimg" src="${esc(img)}" alt="" referrerpolicy="no-referrer">` : giftIcon(name);
-function megaGift(pl, ev, coins) {
-  // city-wide fireworks + flash + big thank-you
-  const flash = $('flash'); flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-  for (let k = 0; k < 4; k++) setTimeout(() => fireworks(new THREE.Vector3((Math.random() - .5) * 80, -10, (Math.random() - .5) * 100), 5), k * 900);
-  banner(`${giftIcon(ev.giftName) === '🎁' ? '🎁' : giftIcon(ev.giftName)} ${String(ev.giftName).toUpperCase()}!`, `von ${pl.nick} – DANKE! 🦁`, 'mega');
-  shout(`👑 <b>${esc(pl.nick)}</b> ist ein Held der Stadt! ${giftHtml(ev.giftName, ev.giftImage)} ${fmt(coins)} Coins`, 'gold', ev.avatar);
-  sfx('mega');
+// rocket: starts on the giver's house, flies up with a sparkling trail, explodes in colours and lights up the house
+const rocketBodyMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: .4 }), rocketRedMat = new THREE.MeshStandardMaterial({ color: 0xe0303a, roughness: .5 });
+function launchRocket(pl, k = 0) {
+  if (!pl.plot) return;
+  const x = pl.plot.x + ([0, -1.6, 1.6][k] || 0), z = pl.plot.z, y0 = (pl.top || 4) + .5;
+  const r = new THREE.Group(); r.position.set(x, y0, z); scene.add(r);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 2, 12), rocketBodyMat); body.position.y = 1; r.add(body);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(.35, .9, 12), rocketRedMat); nose.position.y = 2.45; r.add(nose);
+  for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(.06, .7, .6), rocketRedMat); f.position.set(Math.cos(i * 2.09) * .35, .35, Math.sin(i * 2.09) * .35); f.rotation.y = -i * 2.09; r.add(f); }
+  const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); flame.scale.set(2.5, 2.5, 1); flame.position.y = -.3; r.add(flame);
+  // the house lights up
+  const light = new THREE.PointLight(0xffc060, 0, 40, 1.2); light.position.set(pl.plot.x, y0 + 2, z); scene.add(light);
+  const height = 20 + Math.random() * 5;
+  sfx('rocket');
+  // wider shot from a bit below, so house, flight and explosion are all in the picture
+  focusOn(new THREE.Vector3(pl.plot.x, 0, z), y0, true, { dist: 34 + height * .6, lookY: y0 + height * .55 });
+  animate(1600, p => {
+    const e = p * p;                                   // accelerating
+    r.position.y = y0 + e * height; r.rotation.y += .2;
+    flame.scale.setScalar(2 + Math.random() * 1.5);
+    light.intensity = 6 * Math.sin(Math.min(1, p * 1.3) * Math.PI);
+    if (Math.random() < .6) burst(r.position.clone(), 0xffd890, 2, 2, .7);   // sparkling trail
+  }, () => {
+    const pos = r.position.clone();
+    scene.remove(r); [body, nose, ...r.children].forEach(o => o.geometry?.dispose()); flame.material.dispose();
+    const col = [0xff5aa0, 0xffd23f, 0x33d6d6, 0x8a7dff, 0x3ddc84][Math.floor(Math.random() * 5)];
+    burst(pos, col, 90, 16, 1.9); burst(pos, 0xffffff, 30, 9, 1.2); sfx('boom');
+    light.position.copy(pos); light.color.setHex(col);
+    animate(900, p => light.intensity = 9 * (1 - p), () => scene.remove(light));
+  });
 }
 const shoutQueue = []; let shoutBusy = false;
 function shout(html, color = 'gold', avatar = '') { shoutQueue.push({ html, color, avatar }); if (!shoutBusy) nextShout(); }
@@ -1190,10 +1212,10 @@ function newCity() {
 // Each shot is shown at least MIN ms; meanwhile only the newest wish is kept (+ important ones).
 let focus = null; const focusQueue = [];
 const FOCUS_MIN = 1900, FOCUS_MAX = 4200;
-function focusOn(pos, height, important = false) {
-  const it = { pos: pos.clone(), h: height, important };
+function focusOn(pos, height, important = false, opts = {}) {
+  const it = { pos: pos.clone(), h: height, important, ...opts };   // opts: dist, lookY (custom shot, e.g. for rockets)
   const now = performance.now();
-  if (focus && focus.pos.distanceTo(it.pos) < .1) { focus.until = Math.max(focus.until, now + FOCUS_MAX); focus.h = Math.max(focus.h, height); return; }
+  if (focus && focus.pos.distanceTo(it.pos) < .1) { focus.until = Math.max(focus.until, now + FOCUS_MAX); focus.h = Math.max(focus.h, height); Object.assign(focus, opts); return; }
   if (!focus || now >= focus.min) { startFocus(it); return; }
   for (let i = focusQueue.length - 1; i >= 0; i--) if (!focusQueue[i].important || focusQueue[i].pos.distanceTo(it.pos) < .1) focusQueue.splice(i, 1);
   focusQueue.push(it); if (focusQueue.length > 3) focusQueue.shift();
@@ -1207,9 +1229,10 @@ function updateCamera(t, dt) {
   const now = performance.now();
   if (focus && now >= focus.min && focusQueue.length) startFocus(focusQueue.shift());
   if (focus && now < focus.until) {
-    const h = focus.h, dist = 13 + h * 1.1, a = focus.ang + (now - focus.min) * 0.00006;   // close-up, slowly circling
-    ideal.set(focus.pos.x + Math.sin(a) * dist * .55, h * .6 + 7 + dist * .45, focus.pos.z + Math.cos(a) * dist);
-    look.set(focus.pos.x, h * .45 + 2.5, focus.pos.z);   // house sits a bit below the banners
+    const h = focus.h, dist = focus.dist ?? 13 + h * 1.1, a = focus.ang + (now - focus.min) * 0.00006;   // close-up, slowly circling
+    const ly = focus.lookY ?? h * .45 + 2.5;
+    ideal.set(focus.pos.x + Math.sin(a) * dist * .55, ly + 4.5 + dist * .45 - (focus.lookY != null ? ly * .55 : 0), focus.pos.z + Math.cos(a) * dist);
+    look.set(focus.pos.x, ly, focus.pos.z);   // house sits a bit below the banners
   }
   const k = 1 - Math.pow(.004, dt / 1000);
   camPos.lerp(ideal, k); camTarget.lerp(look, k);
@@ -1247,6 +1270,7 @@ function sfx(k) {
   if (k === 'rank') { tone(700, .12, 'triangle', .09); setTimeout(() => tone(940, .18, 'triangle', .09), 100); }
   if (k === 'happy') { [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .22, 'square', .07), i * 120)); }
   if (k === 'gen') { tone(330, .18, 'square', .06, 2); setTimeout(() => tone(990, .25, 'triangle', .09), 140); }
+  if (k === 'rocket') tone(300, 1.4, 'sawtooth', .04, 4);
   if (k === 'mega') { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, .35, 'triangle', .13), i * 110)); }
 }
 
